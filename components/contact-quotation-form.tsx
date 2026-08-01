@@ -16,6 +16,12 @@ type ProductOption = {
   id: string;
   name: string;
   item_type: string;
+  node_type?: string;
+  layer?: number;
+  core_product_ids?: string[];
+  optional_product_ids?: string[];
+  customer_selectable?: boolean;
+  quotation_enabled?: boolean;
   short_description: string;
   service_group?: string;
   pricing_model: string;
@@ -25,6 +31,7 @@ type ProductOption = {
     medium?: PriceTier;
   };
   quotation_config: {
+    quotation_enabled?: boolean;
     duration_label?: string;
     duration_required?: boolean;
     duration_unit?: string;
@@ -37,11 +44,38 @@ type ProductOption = {
   };
 };
 
+function normalizeQuotationConfig(
+  config: ProductOption["quotation_config"] | undefined
+): ProductOption["quotation_config"] {
+  return {
+    quotation_enabled: config?.quotation_enabled ?? true,
+    quantity_required: config?.quantity_required ?? false,
+    duration_required: config?.duration_required ?? false,
+    manual_review_required: config?.manual_review_required ?? true,
+    quantity_label: config?.quantity_label,
+    quantity_unit: config?.quantity_unit,
+    minimum_quantity: config?.minimum_quantity,
+    duration_label: config?.duration_label,
+    duration_unit: config?.duration_unit,
+    minimum_duration: config?.minimum_duration,
+  };
+}
+
 type PriceTier = {
   label: string;
   maximum_price: number;
   minimum_price: number;
 };
+
+function normalizePriceTiers(
+  tiers: ProductOption["price_tiers"] | undefined
+): ProductOption["price_tiers"] {
+  return {
+    low: tiers?.low,
+    medium: tiers?.medium,
+    high: tiers?.high,
+  };
+}
 
 type SelectedProductFormState = {
   duration: string;
@@ -53,6 +87,8 @@ type RequestPayload = {
   budget_tier: BudgetTierKey;
   category_id: string;
   category_name: string;
+  event_type_id?: string;
+  event_type_name?: string;
   event_location: string;
   name: string;
   notes: string;
@@ -101,10 +137,15 @@ function buildWhatsAppMessage(payload: RequestPayload) {
       const quantityText = `Quantity: ${product.quantity}`;
       const durationText = product.duration > 1 ? `, Duration: ${product.duration}` : "";
 
-      return `${index + 1}. ${product.product_name}
+  return `${index + 1}. ${product.product_name}
    Type: ${product.item_type}
    ${quantityText}${durationText}
-   Estimate: Rs. ${product.estimated_minimum_price} - Rs. ${product.estimated_maximum_price}`;
+   Estimate: ${
+     product.estimated_minimum_price === 0 &&
+     product.estimated_maximum_price === 0
+       ? "Manual review required"
+       : `Rs. ${product.estimated_minimum_price} - Rs. ${product.estimated_maximum_price}`
+   }`;
     })
     .join("\n");
 
@@ -170,6 +211,7 @@ export function ContactQuotationForm({
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState(initialCategoryId);
+  const [selectedEventTypeId, setSelectedEventTypeId] = useState("");
   const [budgetTier, setBudgetTier] = useState<BudgetTierKey>("medium");
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -236,43 +278,55 @@ export function ContactQuotationForm({
       (snapshot) => {
         const nextProducts = snapshot.docs.map((entry) => {
           const data = entry.data();
+          const quotationConfig = normalizeQuotationConfig(
+            data.quotation_config as ProductOption["quotation_config"] | undefined
+          );
+          const priceTiers = normalizePriceTiers(
+            data.price_tiers as ProductOption["price_tiers"] | undefined
+          );
 
           return {
             id: entry.id,
             name: String(data.name ?? ""),
             item_type: String(data.item_type ?? ""),
+            node_type: data.node_type ? String(data.node_type) : undefined,
+            layer: typeof data.layer === "number" ? data.layer : undefined,
+            core_product_ids: Array.isArray(data.core_product_ids)
+              ? data.core_product_ids.map((value) => String(value))
+              : [],
+            optional_product_ids: Array.isArray(data.optional_product_ids)
+              ? data.optional_product_ids.map((value) => String(value))
+              : [],
+            customer_selectable:
+              typeof data.customer_selectable === "boolean"
+                ? data.customer_selectable
+                : true,
+            quotation_enabled:
+              typeof data.quotation_enabled === "boolean"
+                ? data.quotation_enabled
+                : Boolean(
+                    (
+                      data.quotation_config as ProductOption["quotation_config"]
+                    )?.quotation_enabled ?? true
+                  ),
             short_description: String(data.short_description ?? ""),
             service_group: data.service_group
               ? String(data.service_group)
               : undefined,
             pricing_model: String(data.pricing_model ?? ""),
-            price_tiers: data.price_tiers as ProductOption["price_tiers"],
-            quotation_config:
-              data.quotation_config as ProductOption["quotation_config"],
+            price_tiers: priceTiers,
+            quotation_config: quotationConfig,
           };
         });
 
-        setProducts(nextProducts);
-        setSelectedProducts((current) => {
-          const nextState: Record<string, SelectedProductFormState> = {};
-
-          for (const product of nextProducts) {
-            const existing = current[product.id];
-            const shouldPreselect = product.id === initialProductId && !existing;
-
-            nextState[product.id] = existing ?? {
-              duration: product.quotation_config.minimum_duration
-                ? String(product.quotation_config.minimum_duration)
-                : "1",
-              quantity: product.quotation_config.minimum_quantity
-                ? String(product.quotation_config.minimum_quantity)
-                : "1",
-              selected: shouldPreselect,
-            };
-          }
-
-          return nextState;
-        });
+        setProducts(
+          nextProducts.filter(
+            (product) =>
+              product.customer_selectable !== false &&
+              product.quotation_enabled !== false
+          )
+        );
+        setSelectedProducts({});
         setError("");
         setIsLoadingProducts(false);
       },
@@ -291,8 +345,41 @@ export function ContactQuotationForm({
   function handleCategoryChange(nextCategoryId: string) {
     setIsLoadingProducts(Boolean(nextCategoryId));
     setSelectedCategoryId(nextCategoryId);
+    setSelectedEventTypeId("");
     setProducts([]);
     setSelectedProducts({});
+    setSuccessMessage("");
+    setError("");
+  }
+
+  function handleEventTypeChange(nextEventTypeId: string) {
+    setSelectedEventTypeId(nextEventTypeId);
+    setSelectedProducts(() => {
+      const nextState: Record<string, SelectedProductFormState> = {};
+      const eventType = products.find((product) => product.id === nextEventTypeId);
+      const coreIds = new Set(eventType?.core_product_ids ?? []);
+      const optionalIds = new Set(eventType?.optional_product_ids ?? []);
+
+      for (const product of products) {
+        if (!coreIds.has(product.id) && !optionalIds.has(product.id)) {
+          continue;
+        }
+
+        nextState[product.id] = {
+          duration: product.quotation_config.minimum_duration
+            ? String(product.quotation_config.minimum_duration)
+            : "1",
+          quantity: product.quotation_config.minimum_quantity
+            ? String(product.quotation_config.minimum_quantity)
+            : "1",
+          selected:
+            coreIds.has(product.id) ||
+            (product.id === initialProductId && optionalIds.has(product.id)),
+        };
+      }
+
+      return nextState;
+    });
     setSuccessMessage("");
     setError("");
   }
@@ -340,7 +427,22 @@ export function ContactQuotationForm({
       return;
     }
 
+    const selectedEventType = products.find(
+      (product) => product.id === selectedEventTypeId && product.node_type === "event_type"
+    );
+
+    if (!selectedEventType) {
+      setError("Please select an event type before submitting.");
+      return;
+    }
+
+    const bundleIds = new Set([
+      ...(selectedEventType.core_product_ids ?? []),
+      ...(selectedEventType.optional_product_ids ?? []),
+    ]);
+
     const chosenProducts = products
+      .filter((product) => bundleIds.has(product.id) && product.node_type === "bundle")
       .filter((product) => selectedProducts[product.id]?.selected)
       .map((product) => {
         const state = selectedProducts[product.id];
@@ -354,7 +456,9 @@ export function ContactQuotationForm({
           duration: estimate.duration,
           estimated_maximum_price: estimate.maximum,
           estimated_minimum_price: estimate.minimum,
-          item_type: product.item_type,
+          item_type:
+            product.node_type?.replaceAll("_", " ") ??
+            product.item_type.replaceAll("_", " "),
           pricing_model: product.pricing_model,
           product_id: product.id,
           product_name: product.name,
@@ -384,6 +488,8 @@ export function ContactQuotationForm({
         budget_tier: budgetTier,
         category_id: selectedCategory.id,
         category_name: selectedCategory.name,
+        event_type_id: selectedEventType.id,
+        event_type_name: selectedEventType.name,
         event_location: eventLocation.trim(),
         name: name.trim(),
         notes: notes.trim(),
@@ -405,7 +511,7 @@ export function ContactQuotationForm({
       const popup = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
       if (!popup) {
-        window.location.href = whatsappUrl;
+        window.location.assign(whatsappUrl);
       }
 
       setSuccessMessage(
@@ -419,13 +525,13 @@ export function ContactQuotationForm({
       setSelectedProducts((current) => {
         const resetState: Record<string, SelectedProductFormState> = {};
 
-        for (const product of products) {
+        for (const product of bundleProducts) {
           const existing = current[product.id];
 
           resetState[product.id] = {
             duration: existing?.duration ?? "1",
             quantity: existing?.quantity ?? "1",
-            selected: false,
+            selected: coreBundleIdSet.has(product.id),
           };
         }
 
@@ -439,7 +545,20 @@ export function ContactQuotationForm({
     }
   }
 
-  const estimatedTotals = products.reduce(
+  const eventTypeProducts = products.filter(
+    (product) => product.node_type === "event_type" && product.layer === 3
+  );
+  const selectedEventType = eventTypeProducts.find(
+    (product) => product.id === selectedEventTypeId
+  );
+  const coreBundleIdSet = new Set(selectedEventType?.core_product_ids ?? []);
+  const optionalBundleIdSet = new Set(selectedEventType?.optional_product_ids ?? []);
+  const bundleProducts = products.filter(
+    (product) =>
+      product.node_type === "bundle" &&
+      (coreBundleIdSet.has(product.id) || optionalBundleIdSet.has(product.id))
+  );
+  const estimatedTotals = bundleProducts.reduce(
     (totals, product) => {
       const state = selectedProducts[product.id];
 
@@ -472,8 +591,9 @@ export function ContactQuotationForm({
             Request a custom quotation
           </h1>
           <p className="max-w-3xl text-base leading-7 text-zinc-600">
-            Choose a category, select the products or services you need, and
-            we&apos;ll use your preferred budget tier to estimate the request.
+            Choose a category, pick the event type, then select the linked
+            bundles you want in the quotation. We&apos;ll use your preferred
+            budget tier to estimate the request.
           </p>
         </div>
       </section>
@@ -627,14 +747,14 @@ export function ContactQuotationForm({
               Product Selection
             </p>
             <p className="text-base leading-7 text-zinc-600">
-              Choose the products or services you want to include in the request.
-              Quantity and duration fields appear only where required.
+              Start with the event type for the selected category. Once chosen,
+              the matching core bundles and optional add-ons will appear below.
             </p>
           </div>
 
           {!selectedCategoryId ? (
             <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
-              Select a category first to load its products.
+              Select a category first to load its event types.
             </div>
           ) : isLoadingProducts ? (
             <div className="grid gap-4">
@@ -651,9 +771,55 @@ export function ContactQuotationForm({
                 </article>
               ))}
             </div>
-          ) : products.length > 0 ? (
-            <div className="grid gap-4">
-              {products.map((product) => {
+          ) : eventTypeProducts.length > 0 ? (
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-semibold text-zinc-900"
+                  htmlFor="event-type"
+                >
+                  Event type
+                </label>
+                <select
+                  className="h-12 w-full rounded-2xl border-2 border-zinc-300 bg-zinc-50 px-4 text-sm outline-none transition focus:border-zinc-500"
+                  id="event-type"
+                  onChange={(event) => handleEventTypeChange(event.target.value)}
+                  value={selectedEventTypeId}
+                >
+                  <option value="">Select an event type</option>
+                  {eventTypeProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedEventType ? (
+                <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-lg font-semibold text-zinc-900">
+                        {selectedEventType.name}
+                      </p>
+                      <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                        Event type
+                      </span>
+                      <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                        L{selectedEventType.layer ?? 3}
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-600">
+                      {selectedEventType.short_description}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {selectedEventType ? (
+                bundleProducts.length > 0 ? (
+                  <div className="grid gap-4">
+                    {bundleProducts.map((product) => {
                 const productState = selectedProducts[product.id] ?? {
                   duration: product.quotation_config.minimum_duration
                     ? String(product.quotation_config.minimum_duration)
@@ -689,8 +855,19 @@ export function ContactQuotationForm({
                               {product.name}
                             </p>
                             <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                              {product.item_type.replaceAll("_", " ")}
+                              {product.node_type?.replaceAll("_", " ") ??
+                                product.item_type.replaceAll("_", " ")}
                             </span>
+                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                              {coreBundleIdSet.has(product.id)
+                                ? "Core bundle"
+                                : "Optional add-on"}
+                            </span>
+                            {typeof product.layer === "number" ? (
+                              <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                                L{product.layer}
+                              </span>
+                            ) : null}
                             {product.service_group ? (
                               <span className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
                                 {product.service_group.replaceAll("-", " ")}
@@ -705,7 +882,11 @@ export function ContactQuotationForm({
                               {budgetConfig.label}: Rs. {budgetConfig.minimum_price} - Rs.{" "}
                               {budgetConfig.maximum_price}
                             </p>
-                          ) : null}
+                          ) : (
+                            <p className="text-sm font-medium text-zinc-700">
+                              Manual review required for final estimate
+                            </p>
+                          )}
                         </div>
                       </label>
 
@@ -762,7 +943,7 @@ export function ContactQuotationForm({
                             <p className="text-sm text-zinc-600">
                               {estimate
                                 ? `Rs. ${estimate.minimum} - Rs. ${estimate.maximum}`
-                                : "No estimate available for this tier."}
+                                : "Manual review required for this selection."}
                             </p>
                           </div>
                         </div>
@@ -771,10 +952,21 @@ export function ContactQuotationForm({
                   </article>
                 );
               })}
+                  </div>
+                ) : (
+                  <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
+                    No bundles are linked to this event type yet.
+                  </div>
+                )
+              ) : (
+                <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
+                  Select an event type to view its linked bundles.
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
-              No active products found for this category yet.
+              No event types found for this category yet.
             </div>
           )}
         </section>

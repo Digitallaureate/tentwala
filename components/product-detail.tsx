@@ -16,9 +16,15 @@ type ProductDetailData = {
   name: string;
   slug: string;
   item_type: string;
+  node_type?: string;
+  layer?: number;
+  component_product_ids?: string[];
+  core_product_ids?: string[];
+  optional_product_ids?: string[];
   service_group?: string;
   short_description: string;
   description: string;
+  thumbnail_url?: string;
   banner_url?: string;
   pricing_model: string;
   image_urls: string[];
@@ -66,6 +72,18 @@ type ProductDetailData = {
   search_tags: string[];
 };
 
+type LinkedProductCard = {
+  id: string;
+  name: string;
+  slug: string;
+  item_type: string;
+  node_type?: string;
+  layer?: number;
+  thumbnail_url?: string;
+  short_description: string;
+  pricing_model: string;
+};
+
 const productsRef = collection(db, "products");
 
 function formatRange(
@@ -85,6 +103,7 @@ function formatRange(
 
 export function ProductDetail({ slug }: { slug: string }) {
   const [product, setProduct] = useState<ProductDetailData | null>(null);
+  const [linkedProducts, setLinkedProducts] = useState<LinkedProductCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -108,11 +127,23 @@ export function ProductDetail({ slug }: { slug: string }) {
           name: String(data.name ?? ""),
           slug: String(data.slug ?? entry.id),
           item_type: String(data.item_type ?? ""),
+          node_type: data.node_type ? String(data.node_type) : undefined,
+          layer: typeof data.layer === "number" ? data.layer : undefined,
+          component_product_ids: Array.isArray(data.component_product_ids)
+            ? data.component_product_ids.map((value) => String(value))
+            : [],
+          core_product_ids: Array.isArray(data.core_product_ids)
+            ? data.core_product_ids.map((value) => String(value))
+            : [],
+          optional_product_ids: Array.isArray(data.optional_product_ids)
+            ? data.optional_product_ids.map((value) => String(value))
+            : [],
           service_group: data.service_group
             ? String(data.service_group)
             : undefined,
           short_description: String(data.short_description ?? ""),
           description: String(data.description ?? ""),
+          thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
           banner_url: data.banner_url ? String(data.banner_url) : undefined,
           pricing_model: String(data.pricing_model ?? ""),
           image_urls: Array.isArray(data.image_urls)
@@ -168,6 +199,77 @@ export function ProductDetail({ slug }: { slug: string }) {
     return unsubscribe;
   }, [slug]);
 
+  useEffect(() => {
+    if (!product) {
+      return;
+    }
+
+    const linkedIds = Array.from(
+      new Set([
+        ...(product.component_product_ids ?? []),
+        ...(product.core_product_ids ?? []),
+        ...(product.optional_product_ids ?? []),
+      ])
+    );
+
+    if (linkedIds.length === 0) {
+      return;
+    }
+
+    const chunkSize = 30;
+    const chunks = Array.from(
+      { length: Math.ceil(linkedIds.length / chunkSize) },
+      (_, index) => linkedIds.slice(index * chunkSize, index * chunkSize + chunkSize)
+    );
+
+    const unsubscribes = chunks.map((idsChunk) => {
+      const linkedProductsQuery = query(productsRef, where("id", "in", idsChunk));
+
+      return onSnapshot(
+        linkedProductsQuery,
+        (snapshot) => {
+          setLinkedProducts((current) => {
+            const nextMap = new Map(
+              current.map((linkedProduct) => [linkedProduct.id, linkedProduct])
+            );
+
+            for (const entry of snapshot.docs) {
+              const data = entry.data();
+
+              nextMap.set(entry.id, {
+                id: entry.id,
+                name: String(data.name ?? ""),
+                slug: String(data.slug ?? entry.id),
+                item_type: String(data.item_type ?? ""),
+                node_type: data.node_type ? String(data.node_type) : undefined,
+                layer: typeof data.layer === "number" ? data.layer : undefined,
+                thumbnail_url: data.thumbnail_url
+                  ? String(data.thumbnail_url)
+                  : undefined,
+                short_description: String(data.short_description ?? ""),
+                pricing_model: String(data.pricing_model ?? ""),
+              });
+            }
+
+            return linkedIds
+              .map((id) => nextMap.get(id))
+              .filter((value): value is LinkedProductCard => Boolean(value));
+          });
+        },
+        (snapshotError) => {
+          console.error(snapshotError);
+          setError("Could not load linked products from Firestore.");
+        }
+      );
+    });
+
+    return () => {
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe();
+      }
+    };
+  }, [product]);
+
   if (error) {
     return (
       <div className="rounded-[2rem] border-2 border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -214,6 +316,18 @@ export function ProductDetail({ slug }: { slug: string }) {
       product.price_tiers?.high?.label
     ),
   ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const linkedProductMap = new Map(
+    linkedProducts.map((linkedProduct) => [linkedProduct.id, linkedProduct])
+  );
+  const bundleComponents = (product.component_product_ids ?? [])
+    .map((id) => linkedProductMap.get(id))
+    .filter((value): value is LinkedProductCard => Boolean(value));
+  const coreProducts = (product.core_product_ids ?? [])
+    .map((id) => linkedProductMap.get(id))
+    .filter((value): value is LinkedProductCard => Boolean(value));
+  const optionalProducts = (product.optional_product_ids ?? [])
+    .map((id) => linkedProductMap.get(id))
+    .filter((value): value is LinkedProductCard => Boolean(value));
 
   return (
     <div className="space-y-6">
@@ -228,27 +342,39 @@ export function ProductDetail({ slug }: { slug: string }) {
 
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-4">
-              <div className="flex min-h-72 items-end rounded-[1.75rem] border-2 border-dashed border-zinc-300 bg-[linear-gradient(135deg,#f4efe4_0%,#fff9f1_55%,#efe5d5_100%)] p-6 text-sm text-zinc-500">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                    Visual Preview
-                  </p>
-                  <p className="max-w-sm text-sm leading-6 text-zinc-600">
-                    {product.banner_url
-                      ? "Banner image available for this product."
-                      : "Banner image can be added later from Firestore. This placeholder keeps the layout ready."}
-                  </p>
+              {product.banner_url ? (
+                <div className="overflow-hidden rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50">
+                  <img
+                    alt={product.name}
+                    className="h-72 w-full object-cover"
+                    src={product.banner_url}
+                  />
                 </div>
-              </div>
+              ) : (
+                <div className="flex min-h-72 items-end rounded-[1.75rem] border-2 border-dashed border-zinc-300 bg-[linear-gradient(135deg,#f4efe4_0%,#fff9f1_55%,#efe5d5_100%)] p-6 text-sm text-zinc-500">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                      Visual Preview
+                    </p>
+                    <p className="max-w-sm text-sm leading-6 text-zinc-600">
+                      Banner image can be added later from Firestore. This placeholder keeps the layout ready.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {product.image_urls.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-3">
                   {product.image_urls.map((imageUrl, index) => (
                     <div
                       key={`${imageUrl}-${index}`}
-                      className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-xs text-zinc-500"
+                      className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50"
                     >
-                      Gallery image {index + 1}
+                      <img
+                        alt={`${product.name} gallery ${index + 1}`}
+                        className="h-36 w-full object-cover"
+                        src={imageUrl}
+                      />
                     </div>
                   ))}
                 </div>
@@ -270,8 +396,14 @@ export function ProductDetail({ slug }: { slug: string }) {
 
               <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
                 <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
-                  {product.item_type.replaceAll("_", " ")}
+                  {product.node_type?.replaceAll("_", " ") ??
+                    product.item_type.replaceAll("_", " ")}
                 </span>
+                {typeof product.layer === "number" ? (
+                  <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
+                    L{product.layer}
+                  </span>
+                ) : null}
                 {product.service_group ? (
                   <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
                     {product.service_group.replaceAll("-", " ")}
@@ -530,6 +662,147 @@ export function ProductDetail({ slug }: { slug: string }) {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      ) : null}
+
+      {((product.component_product_ids && product.component_product_ids.length > 0) ||
+        (product.core_product_ids && product.core_product_ids.length > 0) ||
+        (product.optional_product_ids && product.optional_product_ids.length > 0)) ? (
+        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
+          <div className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              Linked Products
+            </p>
+            {bundleComponents.length > 0 ? (
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Bundle Components</p>
+                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {bundleComponents.map((linkedProduct) => (
+                    <Link
+                      key={linkedProduct.id}
+                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
+                      href={`/products/${linkedProduct.slug}`}
+                    >
+                      <div className="space-y-3">
+                        {linkedProduct.thumbnail_url ? (
+                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
+                            <img
+                              alt={linkedProduct.name}
+                              className="h-36 w-full object-cover"
+                              src={linkedProduct.thumbnail_url}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                            {linkedProduct.node_type?.replaceAll("_", " ") ??
+                              linkedProduct.item_type.replaceAll("_", " ")}
+                          </span>
+                          {typeof linkedProduct.layer === "number" ? (
+                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                              L{linkedProduct.layer}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-base font-semibold text-zinc-900">
+                          {linkedProduct.name}
+                        </p>
+                        <p className="text-sm leading-6 text-zinc-600">
+                          {linkedProduct.short_description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {coreProducts.length > 0 ? (
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Core Products</p>
+                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {coreProducts.map((linkedProduct) => (
+                    <Link
+                      key={linkedProduct.id}
+                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
+                      href={`/products/${linkedProduct.slug}`}
+                    >
+                      <div className="space-y-3">
+                        {linkedProduct.thumbnail_url ? (
+                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
+                            <img
+                              alt={linkedProduct.name}
+                              className="h-36 w-full object-cover"
+                              src={linkedProduct.thumbnail_url}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                            {linkedProduct.node_type?.replaceAll("_", " ") ??
+                              linkedProduct.item_type.replaceAll("_", " ")}
+                          </span>
+                          {typeof linkedProduct.layer === "number" ? (
+                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                              L{linkedProduct.layer}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-base font-semibold text-zinc-900">
+                          {linkedProduct.name}
+                        </p>
+                        <p className="text-sm leading-6 text-zinc-600">
+                          {linkedProduct.short_description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {optionalProducts.length > 0 ? (
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">Optional Products</p>
+                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {optionalProducts.map((linkedProduct) => (
+                    <Link
+                      key={linkedProduct.id}
+                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
+                      href={`/products/${linkedProduct.slug}`}
+                    >
+                      <div className="space-y-3">
+                        {linkedProduct.thumbnail_url ? (
+                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
+                            <img
+                              alt={linkedProduct.name}
+                              className="h-36 w-full object-cover"
+                              src={linkedProduct.thumbnail_url}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                            {linkedProduct.node_type?.replaceAll("_", " ") ??
+                              linkedProduct.item_type.replaceAll("_", " ")}
+                          </span>
+                          {typeof linkedProduct.layer === "number" ? (
+                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
+                              L{linkedProduct.layer}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="text-base font-semibold text-zinc-900">
+                          {linkedProduct.name}
+                        </p>
+                        <p className="text-sm leading-6 text-zinc-600">
+                          {linkedProduct.short_description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}

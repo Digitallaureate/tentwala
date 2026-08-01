@@ -19,6 +19,7 @@ type CategoryDetailData = {
   slug: string;
   short_description: string;
   description: string;
+  thumbnail_url?: string;
   banner_url?: string;
   image_urls?: string[];
   service_highlights?: string[];
@@ -33,8 +34,12 @@ type CategoryDetailData = {
 type CategoryProduct = {
   id: string;
   item_type: string;
+  node_type?: string;
+  layer?: number;
   name: string;
   slug: string;
+  thumbnail_url?: string;
+  banner_url?: string;
   pricing_model: string;
   short_description: string;
   price_tiers?: {
@@ -84,6 +89,8 @@ export function CategoryDetail({ slug }: { slug: string }) {
           name: String(data.name ?? ""),
           slug: String(data.slug ?? entry.id),
           short_description: String(data.short_description ?? ""),
+          thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
+          banner_url: data.banner_url ? String(data.banner_url) : undefined,
           description: "",
         });
         setIsCategoryLoading(false);
@@ -179,8 +186,14 @@ export function CategoryDetail({ slug }: { slug: string }) {
             return {
               id: entry.id,
               item_type: String(data.item_type ?? ""),
+              node_type: data.node_type ? String(data.node_type) : undefined,
+              layer: typeof data.layer === "number" ? data.layer : undefined,
               name: String(data.name ?? ""),
               slug: String(data.slug ?? entry.id),
+              thumbnail_url: data.thumbnail_url
+                ? String(data.thumbnail_url)
+                : undefined,
+              banner_url: data.banner_url ? String(data.banner_url) : undefined,
               pricing_model: String(data.pricing_model ?? ""),
               short_description: String(data.short_description ?? ""),
               price_tiers: data.price_tiers as CategoryProduct["price_tiers"],
@@ -204,6 +217,10 @@ export function CategoryDetail({ slug }: { slug: string }) {
 
     return unsubscribe;
   }, [category]);
+
+  const eventTypeProducts = products.filter(
+    (product) => product.node_type === "event_type" && product.layer === 3
+  );
 
   if (error) {
     return (
@@ -267,6 +284,33 @@ export function CategoryDetail({ slug }: { slug: string }) {
               </p>
             ) : null}
           </div>
+
+          {category.banner_url ? (
+            <div className="overflow-hidden rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50">
+              <img
+                alt={category.name}
+                className="h-72 w-full object-cover"
+                src={category.banner_url}
+              />
+            </div>
+          ) : null}
+
+          {category.image_urls && category.image_urls.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {category.image_urls.slice(0, 3).map((imageUrl, index) => (
+                <div
+                  key={`${imageUrl}-${index}`}
+                  className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50"
+                >
+                  <img
+                    alt={`${category.name} gallery ${index + 1}`}
+                    className="h-32 w-full object-cover"
+                    src={imageUrl}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -294,10 +338,10 @@ export function CategoryDetail({ slug }: { slug: string }) {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Related Products
+              Event Types
             </p>
             <p className="text-lg font-semibold text-zinc-900">
-              Products linked to {category.name}
+              Event flows linked to {category.name}
             </p>
           </div>
         </div>
@@ -320,15 +364,15 @@ export function CategoryDetail({ slug }: { slug: string }) {
               </article>
             ))}
           </div>
-        ) : products.length > 0 ? (
+        ) : eventTypeProducts.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-3">
-            {products.map((product) => {
+            {eventTypeProducts.map((product) => {
               const mediumTier = product.price_tiers?.medium;
               const priceText =
                 typeof mediumTier?.minimum_price === "number" &&
                 typeof mediumTier?.maximum_price === "number"
                   ? `Rs. ${mediumTier.minimum_price} - Rs. ${mediumTier.maximum_price}`
-                  : product.pricing_model.replaceAll("_", " ");
+                  : "Core bundles + optional add-ons";
 
               return (
                 <Link
@@ -337,16 +381,32 @@ export function CategoryDetail({ slug }: { slug: string }) {
                   href={`/products/${product.slug}`}
                 >
                   <div className="space-y-4">
-                    <div className="flex h-40 items-center justify-center rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white text-sm text-zinc-400">
-                      Product image
-                    </div>
+                    {product.thumbnail_url || product.banner_url ? (
+                      <div className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-white">
+                        <img
+                          alt={product.name}
+                          className="h-40 w-full object-cover"
+                          src={product.thumbnail_url ?? product.banner_url}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-40 items-center justify-center rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white text-sm text-zinc-400">
+                        Event type preview
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <p className="text-lg font-semibold">{product.name}</p>
                       <p className="text-sm text-zinc-600">
                         {product.short_description}
                       </p>
                       <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-zinc-400">
-                        <span>{product.item_type.replaceAll("_", " ")}</span>
+                        <span>
+                          {product.node_type?.replaceAll("_", " ") ??
+                            product.item_type.replaceAll("_", " ")}
+                        </span>
+                        {typeof product.layer === "number" ? (
+                          <span>L{product.layer}</span>
+                        ) : null}
                         {product.service_group ? (
                           <span>{product.service_group.replaceAll("-", " ")}</span>
                         ) : null}
@@ -365,7 +425,7 @@ export function CategoryDetail({ slug }: { slug: string }) {
           </div>
         ) : (
           <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
-            No products are linked to this category yet.
+            No event types are linked to this category yet.
           </div>
         )}
       </section>

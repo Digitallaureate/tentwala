@@ -8,8 +8,12 @@ import { db } from "@/lib/firebase";
 type SearchableProduct = {
   id: string;
   item_type: string;
+  node_type?: string;
+  layer?: number;
+  customer_selectable?: boolean;
   name: string;
   slug: string;
+  thumbnail_url?: string;
   pricing_model: string;
   search_tags: string[];
   search_text: string;
@@ -70,8 +74,17 @@ export function ProductSearchResults({ queryText }: { queryText: string }) {
             return {
               id: entry.id,
               item_type: String(data.item_type ?? ""),
+              node_type: data.node_type ? String(data.node_type) : undefined,
+              layer: typeof data.layer === "number" ? data.layer : undefined,
+              customer_selectable:
+                typeof data.customer_selectable === "boolean"
+                  ? data.customer_selectable
+                  : true,
               name: String(data.name ?? ""),
               slug: String(data.slug ?? entry.id),
+              thumbnail_url: data.thumbnail_url
+                ? String(data.thumbnail_url)
+                : undefined,
               pricing_model: String(data.pricing_model ?? ""),
               search_tags: Array.isArray(data.search_tags)
                 ? data.search_tags.map((tag) => String(tag))
@@ -101,7 +114,11 @@ export function ProductSearchResults({ queryText }: { queryText: string }) {
   }, []);
 
   const filteredProducts = deferredQuery
-    ? products.filter((product) => matchesProduct(product, deferredQuery))
+    ? products.filter(
+        (product) =>
+          product.customer_selectable !== false &&
+          matchesProduct(product, deferredQuery)
+      )
     : [];
 
   if (isLoading) {
@@ -169,14 +186,30 @@ export function ProductSearchResults({ queryText }: { queryText: string }) {
               href={`/products/${product.slug}`}
             >
               <div className="space-y-4">
-                <div className="flex h-40 items-center justify-center rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white text-sm text-zinc-400">
-                  Product image
-                </div>
+                {product.thumbnail_url ? (
+                  <div className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-white">
+                    <img
+                      alt={product.name}
+                      className="h-40 w-full object-cover"
+                      src={product.thumbnail_url}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-40 items-center justify-center rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white text-sm text-zinc-400">
+                    Product image
+                  </div>
+                )}
                 <div className="space-y-2">
                   <p className="text-lg font-semibold">{product.name}</p>
                   <p className="text-sm text-zinc-600">{product.short_description}</p>
                   <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-zinc-400">
-                    <span>{product.item_type.replaceAll("_", " ")}</span>
+                    <span>
+                      {product.node_type?.replaceAll("_", " ") ??
+                        product.item_type.replaceAll("_", " ")}
+                    </span>
+                    {typeof product.layer === "number" ? (
+                      <span>L{product.layer}</span>
+                    ) : null}
                     {product.service_group ? (
                       <span>{product.service_group.replaceAll("-", " ")}</span>
                     ) : null}

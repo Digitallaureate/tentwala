@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  finalLayeredProductSeedData,
+} from "@/lib/final-layered-product-seed";
 
 type Category = {
   id: string;
@@ -34,63 +37,25 @@ type CategoryDetail = {
   }>;
 };
 
-type PriceTier = {
-  label: string;
-  minimum_price: number;
-  maximum_price: number;
-};
-
-type Product = {
-  id: string;
-  name: string;
-  slug: string;
-  item_type: "event_type" | "service";
-  service_group?: string;
-  category_ids: string[];
-  event_type_ids?: string[];
-  short_description: string;
-  description: string;
-  thumbnail_url: string;
-  banner_url?: string;
-  image_urls: string[];
-  service_highlights?: string[];
-  included_items?: string[];
-  ideal_for?: string[];
-  pricing_notes?: string[];
-  faq?: Array<{
-    question: string;
-    answer: string;
-  }>;
-  terms_and_conditions?: string[];
-  availability_note?: string;
-  pricing_model: string;
-  price_tiers: {
-    low: PriceTier;
-    medium: PriceTier;
-    high: PriceTier;
-  };
-  quotation_config: {
-    quotation_enabled: boolean;
-    quantity_required: boolean;
-    duration_required: boolean;
-    manual_review_required: boolean;
-    quantity_label?: string;
-    quantity_unit?: string;
-    minimum_quantity?: number;
-    duration_label?: string;
-    duration_unit?: string;
-    minimum_duration?: number;
-  };
-  search_tags: string[];
-  search_text: string;
-  sort_order: number;
-  is_featured: boolean;
-  is_active: boolean;
-};
-
 const categoriesRef = collection(db, "product_categories");
 const categoryDetailsRef = collection(db, "category_details");
 const productsRef = collection(db, "products");
+
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefined(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined);
+
+    return Object.fromEntries(
+      entries.map(([entryKey, entryValue]) => [entryKey, stripUndefined(entryValue)])
+    ) as T;
+  }
+
+  return value;
+}
 
 const categorySeedData: Category[] = [
   {
@@ -101,9 +66,8 @@ const categorySeedData: Category[] = [
       "Complete tent and event services for wedding-related functions.",
     description:
       "Tent, seating, decoration, catering, stage, lighting, power, photography and other arrangements for engagement, haldi, mehendi, sangeet, wedding and reception functions.",
-    thumbnail_url: "",
-    banner_url: "",
-
+    thumbnail_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent1.png?alt=media&token=7a424ea4-0ff7-4539-bb05-26e106d6e8a3",
+    banner_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent2.png?alt=media&token=125cae6b-7890-4b03-ac51-2eb53113d076",
     sort_order: 1,
     is_featured: true,
     is_active: true,
@@ -120,9 +84,8 @@ const categorySeedData: Category[] = [
     description:
       "Tent, seating, decoration, catering, music, lighting and other arrangements for birthdays, anniversaries, family get-togethers and festive celebrations.",
 
-    thumbnail_url: "",
-    banner_url: "",
-
+    thumbnail_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent1.png?alt=media&token=7a424ea4-0ff7-4539-bb05-26e106d6e8a3",
+    banner_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent2.png?alt=media&token=125cae6b-7890-4b03-ac51-2eb53113d076",
     sort_order: 2,
     is_featured: true,
     is_active: true,
@@ -139,8 +102,8 @@ const categorySeedData: Category[] = [
     description:
       "Tent, seating, stage, sound, lighting, power, catering and staff support for corporate events, dealer meets, school functions, college festivals, convocations, exhibitions and government programmes.",
 
-    thumbnail_url: "",
-    banner_url: "",
+    thumbnail_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent1.png?alt=media&token=7a424ea4-0ff7-4539-bb05-26e106d6e8a3",
+    banner_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent2.png?alt=media&token=125cae6b-7890-4b03-ac51-2eb53113d076",
 
     sort_order: 3,
     is_featured: true,
@@ -158,8 +121,9 @@ const categorySeedData: Category[] = [
     description:
       "Tent, seating, stage, lighting, catering and other arrangements for grih pravesh, havan, jagran, bhajan, kirtan, mundan, naamkaran and prayer meetings.",
 
-    thumbnail_url: "",
-    banner_url: "",
+    thumbnail_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent1.png?alt=media&token=7a424ea4-0ff7-4539-bb05-26e106d6e8a3",
+    banner_url: "https://firebasestorage.googleapis.com/v0/b/ecostory-b31b6.firebasestorage.app/o/wedding%2Ftent2.png?alt=media&token=125cae6b-7890-4b03-ac51-2eb53113d076",
+
 
     sort_order: 4,
     is_featured: true,
@@ -298,485 +262,7 @@ const categoryDetailSeedData: CategoryDetail[] = [
   },
 ];
 
-const productSeedData: Product[] = [
-  {
-    id: "engagement",
-    name: "Engagement",
-    slug: "engagement",
-    item_type: "event_type",
-    category_ids: ["wedding-functions"],
-    short_description: "Arrangement flow for engagement ceremonies.",
-    description:
-      "Event type for engagement functions with decor, seating, lighting and service planning.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "base_price",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 10000, maximum_price: 15000 },
-      medium: { label: "Standard", minimum_price: 18000, maximum_price: 25000 },
-      high: { label: "Premium", minimum_price: 30000, maximum_price: 45000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: false,
-      manual_review_required: false,
-    },
-    search_tags: [
-      "engagement",
-      "engagement ceremony",
-      "ring ceremony",
-      "wedding engagement",
-      "engagement function",
-    ],
-    search_text:
-      "engagement engagement ceremony ring ceremony wedding engagement engagement function",
-    sort_order: 1,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "haldi",
-    name: "Haldi",
-    slug: "haldi",
-    item_type: "event_type",
-    category_ids: ["wedding-functions"],
-    short_description: "Arrangement flow for haldi ceremonies.",
-    description:
-      "Event type for haldi celebrations with decor, seating and festive setup planning.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "base_price",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 8000, maximum_price: 12000 },
-      medium: { label: "Standard", minimum_price: 15000, maximum_price: 22000 },
-      high: { label: "Premium", minimum_price: 25000, maximum_price: 38000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: false,
-      manual_review_required: false,
-    },
-    search_tags: [
-      "haldi",
-      "haldi ceremony",
-      "haldi function",
-      "wedding haldi",
-      "haldi event",
-    ],
-    search_text:
-      "haldi haldi ceremony haldi function wedding haldi haldi event",
-    sort_order: 2,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "wedding",
-    name: "Wedding",
-    slug: "wedding",
-    item_type: "event_type",
-    category_ids: ["wedding-functions"],
-    short_description: "Arrangement flow for main wedding functions.",
-    description:
-      "Event type for wedding day planning with tent, decor, catering and guest setup requirements.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "base_price",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 20000, maximum_price: 30000 },
-      medium: { label: "Standard", minimum_price: 40000, maximum_price: 60000 },
-      high: { label: "Premium", minimum_price: 70000, maximum_price: 120000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: false,
-      manual_review_required: true,
-    },
-    search_tags: [
-      "wedding",
-      "wedding function",
-      "marriage",
-      "shaadi",
-      "wedding event",
-    ],
-    search_text: "wedding wedding function marriage shaadi wedding event",
-    sort_order: 3,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "reception",
-    name: "Reception",
-    slug: "reception",
-    item_type: "event_type",
-    category_ids: ["wedding-functions"],
-    short_description: "Arrangement flow for wedding receptions.",
-    description:
-      "Event type for reception planning with stage, catering, photography and lighting support.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "base_price",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 10000, maximum_price: 18000 },
-      medium: { label: "Standard", minimum_price: 22000, maximum_price: 35000 },
-      high: { label: "Premium", minimum_price: 40000, maximum_price: 65000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: false,
-      manual_review_required: false,
-    },
-    search_tags: [
-      "reception",
-      "wedding reception",
-      "reception function",
-      "reception event",
-      "party reception",
-    ],
-    search_text:
-      "reception wedding reception reception function reception event party reception",
-    sort_order: 4,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "banquet-chair",
-    name: "Banquet Chair",
-    slug: "banquet-chair",
-    item_type: "service",
-    service_group: "chairs-and-seating",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "Banquet chairs for events.",
-    description:
-      "Available in basic, covered and premium options for multiple event types.",
-    thumbnail_url: "",
-    banner_url: "",
-    image_urls: [],
-    service_highlights: [
-      "Banquet seating for weddings, receptions and public functions",
-      "Basic, standard and premium chair options available",
-      "Suitable for both indoor and outdoor venue arrangements",
-    ],
-    included_items: [
-      "Chair delivery to event location",
-      "Placement support as per seating layout",
-      "Pickup after event completion",
-    ],
-    ideal_for: [
-      "Wedding and reception guest seating",
-      "Birthday parties and family functions",
-      "Corporate and public events",
-    ],
-    pricing_notes: [
-      "Final price depends on chair type, quantity and event duration.",
-      "Transport charges may vary based on event location.",
-      "Chair cover or decoration can be quoted separately if required.",
-    ],
-    faq: [
-      {
-        question: "Can I rent chairs for one day only?",
-        answer:
-          "Yes, banquet chairs can be booked for one day or for multiple days based on event need.",
-      },
-      {
-        question: "Can chair covers and bows be added?",
-        answer:
-          "Yes, decorative chair covers and styling options can be added in the final quotation.",
-      },
-    ],
-    terms_and_conditions: [
-      "Minimum order quantity applies for chair booking.",
-      "Damaged or missing chairs may be chargeable after the event.",
-      "Final delivery timing depends on venue access and setup slot.",
-    ],
-    availability_note:
-      "Advance booking is recommended during wedding season and festival dates.",
-    pricing_model: "per_unit_per_day",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 30, maximum_price: 40 },
-      medium: { label: "Standard", minimum_price: 50, maximum_price: 70 },
-      high: { label: "Premium", minimum_price: 80, maximum_price: 120 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: true,
-      quantity_label: "Number of chairs",
-      quantity_unit: "chair",
-      minimum_quantity: 20,
-      duration_required: true,
-      duration_label: "Number of days",
-      duration_unit: "day",
-      minimum_duration: 1,
-      manual_review_required: false,
-    },
-    search_tags: [
-      "banquet chair",
-      "chair",
-      "chairs",
-      "event chair",
-      "wedding chair",
-      "party chair",
-      "chair rental",
-      "seating",
-    ],
-    search_text:
-      "banquet chair chair chairs event chair wedding chair party chair chair rental seating",
-    sort_order: 5,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "tent-setup",
-    name: "Tent Setup",
-    slug: "tent-setup",
-    item_type: "service",
-    service_group: "tent-and-structure",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "Tent setup for small and large events.",
-    description:
-      "Tent structure setup for weddings, parties, corporate functions and large event arrangements.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "per_event",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 15000, maximum_price: 25000 },
-      medium: { label: "Standard", minimum_price: 30000, maximum_price: 50000 },
-      high: { label: "Premium", minimum_price: 60000, maximum_price: 90000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: true,
-      duration_label: "Number of days",
-      duration_unit: "day",
-      minimum_duration: 1,
-      manual_review_required: true,
-    },
-    search_tags: [
-      "tent",
-      "tent setup",
-      "event tent",
-      "wedding tent",
-      "party tent",
-      "tent rental",
-      "pandal",
-      "structure setup",
-    ],
-    search_text:
-      "tent tent setup event tent wedding tent party tent tent rental pandal structure setup",
-    sort_order: 6,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "catering-service",
-    name: "Catering Service",
-    slug: "catering-service",
-    item_type: "service",
-    service_group: "food-and-catering",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "Food and catering services for events.",
-    description:
-      "Flexible catering support for small gatherings, receptions, public programs and formal functions.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "per_person",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 250, maximum_price: 350 },
-      medium: { label: "Standard", minimum_price: 450, maximum_price: 650 },
-      high: { label: "Premium", minimum_price: 800, maximum_price: 1200 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: true,
-      quantity_label: "Number of guests",
-      quantity_unit: "person",
-      minimum_quantity: 25,
-      duration_required: false,
-      manual_review_required: true,
-    },
-    search_tags: [
-      "catering",
-      "food service",
-      "event catering",
-      "wedding catering",
-      "party catering",
-      "caterer",
-      "meal service",
-      "buffet",
-    ],
-    search_text:
-      "catering food service event catering wedding catering party catering caterer meal service buffet",
-    sort_order: 7,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "dj-setup",
-    name: "DJ Setup",
-    slug: "dj-setup",
-    item_type: "service",
-    service_group: "music-and-entertainment",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "DJ and sound setup for celebrations.",
-    description:
-      "DJ console, speakers and music support for weddings, birthdays and event gatherings.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "per_event",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 10000, maximum_price: 18000 },
-      medium: { label: "Standard", minimum_price: 22000, maximum_price: 35000 },
-      high: { label: "Premium", minimum_price: 40000, maximum_price: 65000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: true,
-      duration_label: "Number of days",
-      duration_unit: "day",
-      minimum_duration: 1,
-      manual_review_required: false,
-    },
-    search_tags: [
-      "dj",
-      "dj setup",
-      "music",
-      "sound system",
-      "event dj",
-      "party dj",
-      "dj rental",
-      "entertainment",
-    ],
-    search_text:
-      "dj dj setup music sound system event dj party dj dj rental entertainment",
-    sort_order: 8,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "event-photography",
-    name: "Event Photography",
-    slug: "event-photography",
-    item_type: "service",
-    service_group: "photography-and-videography",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "Photography and videography services for events.",
-    description:
-      "Choose basic, standard or premium event photography services for multiple event types.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "per_event",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 15000, maximum_price: 25000 },
-      medium: { label: "Standard", minimum_price: 30000, maximum_price: 50000 },
-      high: { label: "Premium", minimum_price: 60000, maximum_price: 100000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: true,
-      duration_label: "Number of days",
-      duration_unit: "day",
-      minimum_duration: 1,
-      manual_review_required: true,
-    },
-    search_tags: [
-      "photography",
-      "event photography",
-      "photographer",
-      "videography",
-      "camera service",
-      "wedding photography",
-      "party photography",
-      "event videography",
-    ],
-    search_text:
-      "photography event photography photographer videography camera service wedding photography party photography event videography",
-    sort_order: 9,
-    is_featured: true,
-    is_active: true,
-  },
-  {
-    id: "stage-decoration",
-    name: "Stage Decoration",
-    slug: "stage-decoration",
-    item_type: "service",
-    service_group: "decoration-and-stage",
-    category_ids: [
-      "wedding-functions",
-      "birthday-and-small-parties",
-      "corporate-events",
-      "incorporate-event",
-    ],
-    event_type_ids: ["engagement", "haldi", "wedding", "reception"],
-    short_description: "Stage decoration services for events.",
-    description:
-      "Backdrop, floral styling, lighting accents and presentation decor for event stages.",
-    thumbnail_url: "",
-    image_urls: [],
-    pricing_model: "per_event",
-    price_tiers: {
-      low: { label: "Basic", minimum_price: 12000, maximum_price: 18000 },
-      medium: { label: "Standard", minimum_price: 22000, maximum_price: 35000 },
-      high: { label: "Premium", minimum_price: 40000, maximum_price: 70000 },
-    },
-    quotation_config: {
-      quotation_enabled: true,
-      quantity_required: false,
-      duration_required: false,
-      manual_review_required: true,
-    },
-    search_tags: [
-      "stage decoration",
-      "stage decor",
-      "backdrop",
-      "event decoration",
-      "wedding stage",
-      "party decoration",
-      "stage setup",
-      "decor",
-    ],
-    search_text:
-      "stage decoration stage decor backdrop event decoration wedding stage party decoration stage setup decor",
-    sort_order: 10,
-    is_featured: true,
-    is_active: true,
-  },
-];
+const productSeedData = finalLayeredProductSeedData;
 
 export function FirestoreDemo() {
   const [error, setError] = useState("");
@@ -793,7 +279,7 @@ export function FirestoreDemo() {
     try {
       for (const category of categorySeedData) {
         await setDoc(doc(categoriesRef, category.id), {
-          ...category,
+          ...stripUndefined(category),
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });
@@ -816,7 +302,7 @@ export function FirestoreDemo() {
     try {
       for (const product of productSeedData) {
         await setDoc(doc(productsRef, product.id), {
-          ...product,
+          ...stripUndefined(product),
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });
@@ -839,7 +325,7 @@ export function FirestoreDemo() {
     try {
       for (const categoryDetail of categoryDetailSeedData) {
         await setDoc(doc(categoryDetailsRef, categoryDetail.id), {
-          ...categoryDetail,
+          ...stripUndefined(categoryDetail),
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         });
@@ -864,6 +350,11 @@ export function FirestoreDemo() {
         <p className="text-sm leading-6 text-zinc-600">
           Upload the default category and product collections with fixed
           document IDs.
+        </p>
+        <p className="text-sm leading-6 text-zinc-500">
+          Re-uploading products will refresh existing product documents with the
+          latest schema, including media placeholders, price tiers, and
+          quotation config.
         </p>
       </div>
 

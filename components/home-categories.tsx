@@ -16,6 +16,8 @@ type HomeCategory = {
   name: string;
   slug: string;
   short_description: string;
+  thumbnail_url?: string;
+  banner_url?: string;
   sort_order: number;
   is_active: boolean;
 };
@@ -43,12 +45,18 @@ function getCategoryDescription(
   return `${source.slice(0, 237).trimEnd()}...`;
 }
 
-function getCategoryGallery(detail?: CategoryDetailContent) {
+function getCategoryGalleryWithFallback(
+  category: HomeCategory,
+  detail?: CategoryDetailContent
+) {
   return Array.from(
     new Set(
-      [detail?.banner_url, ...(detail?.image_urls ?? [])].filter(
-        (image): image is string => Boolean(image)
-      )
+      [
+        detail?.banner_url,
+        ...(detail?.image_urls ?? []),
+        category.banner_url,
+        category.thumbnail_url,
+      ].filter((image): image is string => Boolean(image))
     )
   );
 }
@@ -81,6 +89,10 @@ export function HomeCategories() {
               name: String(data.name ?? ""),
               slug: String(data.slug ?? entry.id),
               short_description: String(data.short_description ?? ""),
+              thumbnail_url: data.thumbnail_url
+                ? String(data.thumbnail_url)
+                : undefined,
+              banner_url: data.banner_url ? String(data.banner_url) : undefined,
               sort_order: Number(data.sort_order ?? 0),
               is_active: Boolean(data.is_active ?? false),
             };
@@ -201,7 +213,7 @@ export function HomeCategories() {
     <div className="space-y-8">
       {categories.map((category, index) => {
         const detail = categoryDetails[category.id];
-        const gallery = getCategoryGallery(detail);
+        const gallery = getCategoryGalleryWithFallback(category, detail);
         const activeImageIndex = Math.min(
           activeImages[category.id] ?? 0,
           Math.max(gallery.length - 1, 0)

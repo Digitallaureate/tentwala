@@ -16,26 +16,18 @@ type HomeCategoryPreviewItem = {
   name: string;
   slug: string;
   short_description: string;
+  thumbnail_url?: string;
   sort_order: number;
 };
 
 const categoriesRef = collection(db, "product_categories");
 
-function getCategoryIcon(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 function getCategoryCopy(copy: string) {
-  if (copy.length <= 110) {
+  if (copy.length <= 120) {
     return copy;
   }
 
-  return `${copy.slice(0, 107).trimEnd()}...`;
+  return `${copy.slice(0, 117).trimEnd()}...`;
 }
 
 export function HomeCategoryPreview() {
@@ -62,6 +54,9 @@ export function HomeCategoryPreview() {
               name: String(data.name ?? ""),
               slug: String(data.slug ?? entry.id),
               short_description: String(data.short_description ?? ""),
+              thumbnail_url: data.thumbnail_url
+                ? String(data.thumbnail_url)
+                : undefined,
               sort_order: Number(data.sort_order ?? 0),
             };
           })
@@ -83,18 +78,19 @@ export function HomeCategoryPreview() {
 
   if (isLoading) {
     return (
-      <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-[2rem] border border-[#dbe7e7] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,252,252,0.96)_100%)] px-6 py-8 text-center shadow-[0_18px_38px_rgba(77,103,114,0.12)]"
+            className="overflow-hidden rounded-[2rem] border border-[#d8e5e5] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(244,250,250,0.94)_100%)] shadow-[0_20px_48px_rgba(62,84,96,0.12)]"
           >
-            <div className="mx-auto h-24 w-24 rounded-full border border-[#8ebdc2]/35 bg-[linear-gradient(135deg,#eff9fa_0%,#fff8f3_100%)]" />
-            <div className="mx-auto mt-6 h-7 w-40 rounded-full bg-zinc-200" />
-            <div className="mt-4 space-y-2">
-              <div className="h-3 rounded-full bg-zinc-200" />
-              <div className="h-3 rounded-full bg-zinc-200" />
-              <div className="mx-auto h-3 w-3/4 rounded-full bg-zinc-200" />
+            <div className="h-52 bg-zinc-100" />
+            <div className="space-y-4 p-6">
+              <div className="h-4 w-24 rounded-full bg-[#dceaea]" />
+              <div className="h-8 w-2/3 rounded-full bg-zinc-200" />
+              <div className="h-3 w-full rounded-full bg-zinc-200" />
+              <div className="h-3 w-5/6 rounded-full bg-zinc-200" />
+              <div className="h-11 w-36 rounded-full bg-[#dceaea]" />
             </div>
           </div>
         ))}
@@ -119,22 +115,46 @@ export function HomeCategoryPreview() {
   }
 
   return (
-    <div className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-      {categories.map((category) => (
+    <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+      {categories.map((category, index) => (
         <Link
           key={category.id}
-          className="rounded-[2rem] border border-[#dbe7e7] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,252,252,0.96)_100%)] px-6 py-8 text-center shadow-[0_18px_38px_rgba(77,103,114,0.12)] transition hover:-translate-y-1 hover:shadow-[0_22px_45px_rgba(77,103,114,0.18)]"
+          className="group overflow-hidden rounded-[2rem] border border-[#d8e5e5] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(244,250,250,0.94)_100%)] shadow-[0_20px_48px_rgba(62,84,96,0.12)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_60px_rgba(62,84,96,0.18)]"
           href={`/categories/${category.slug}`}
         >
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-[#8ebdc2]/35 bg-[linear-gradient(135deg,#eff9fa_0%,#fff8f3_100%)] text-2xl font-semibold tracking-[0.14em] text-[#2c8088]">
-            {getCategoryIcon(category.name)}
+          <div className="relative h-56 overflow-hidden bg-[linear-gradient(135deg,#dff3f5_0%,#fffdf9_52%,#f5e8d8_100%)]">
+            {category.thumbnail_url ? (
+              <img
+                alt={category.name}
+                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]"
+                src={category.thumbnail_url}
+              />
+            ) : null}
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,24,39,0.02)_0%,rgba(17,24,39,0.08)_48%,rgba(17,24,39,0.38)_100%)]" />
+            <div className="absolute left-5 top-5 rounded-full border border-white/55 bg-white/78 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2c8088] backdrop-blur">
+              {String(index + 1).padStart(2, "0")}
+            </div>
+            <div className="absolute inset-x-0 bottom-0 p-5">
+              <p className="font-serif text-2xl uppercase leading-tight tracking-[0.05em] text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.28)]">
+                {category.name}
+              </p>
+            </div>
           </div>
-          <p className="mt-6 font-serif text-2xl uppercase tracking-[0.04em] text-[#2d3748]">
-            {category.name}
-          </p>
-          <p className="mt-4 text-sm leading-8 text-zinc-600">
-            {getCategoryCopy(category.short_description)}
-          </p>
+
+          <div className="space-y-5 p-6">
+            <p className="text-sm leading-7 text-zinc-600">
+              {getCategoryCopy(category.short_description)}
+            </p>
+
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#56b7c4]">
+                View category
+              </span>
+              <span className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border border-[#1d2d44]/12 bg-white text-lg text-[#1d2d44] transition group-hover:border-[#56b7c4]/60 group-hover:text-[#56b7c4]">
+                →
+              </span>
+            </div>
+          </div>
         </Link>
       ))}
     </div>
