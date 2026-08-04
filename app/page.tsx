@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FloatingQuotationChat } from "@/components/floating-quotation-chat";
 import { HomeCategoryPreview } from "@/components/home-category-preview";
 import { HomeProducts } from "@/components/home-products";
 import { SiteHeader } from "@/components/site-header";
@@ -6,7 +7,7 @@ import { FirestoreDemo } from "@/components/firestore-demo";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(232,241,244,0.95)_0%,_rgba(232,241,244,0.86)_18%,_rgba(248,249,247,0.97)_42%,_rgba(253,248,242,0.98)_68%,_rgba(240,230,220,0.94)_100%)] px-4 py-6 text-zinc-950 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(232,241,244,0.95)_0%,_rgba(232,241,244,0.86)_18%,_rgba(248,249,247,0.97)_42%,_rgba(253,248,242,0.98)_68%,_rgba(240,230,220,0.94)_100%)] px-4 pb-6 pt-36 text-zinc-950 sm:px-6 sm:pb-6 sm:pt-40 lg:px-8 lg:pt-44">
       <div className="mx-auto flex w-full max-w-none flex-col gap-6">
         <SiteHeader active="home" />
 
@@ -205,9 +206,10 @@ export default function Home() {
           </div>
 
           <HomeProducts />
-          <FirestoreDemo/>
+          {/* <FirestoreDemo/> */}
         </section>
       </div>
+      <FloatingQuotationChat />
     </main>
   );
 }

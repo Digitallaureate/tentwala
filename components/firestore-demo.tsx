@@ -6,6 +6,8 @@ import { db } from "@/lib/firebase";
 import {
   finalLayeredProductSeedData,
 } from "@/lib/final-layered-product-seed";
+import { seedTentwalaAssistantConfig } from "@/lib/seed-assistant-config";
+import { seedTentwalaKnowledgeBase } from "@/lib/seed-assistant-knowledge";
 
 type Category = {
   id: string;
@@ -165,10 +167,10 @@ const categoryDetailSeedData: CategoryDetail[] = [
     ],
   },
   {
-    id: "birthday-and-small-parties",
-    category_id: "birthday-and-small-parties",
+    id: "family-friends-gatherings",
+    category_id: "family-friends-gatherings",
     description:
-      "Discover tent setup, decoration, catering, music and seating support for birthday parties and smaller celebration events.",
+      "Discover tent setup, decoration, catering, music and seating support for birthdays, anniversaries, festive evenings and close-knit family gatherings.",
     banner_url: "",
     image_urls: [],
     service_highlights: [
@@ -180,14 +182,14 @@ const categoryDetailSeedData: CategoryDetail[] = [
     starting_price: 12000,
     price_note:
       "Quotation depends on guest count, service selection and event duration.",
-    meta_title: "Birthday and Small Party Services | The TentWala",
+    meta_title: "Family and Friends Gathering Services | The TentWala",
     meta_description:
-      "Explore tent, decor, food and event setup services for birthday parties and small gatherings.",
+      "Explore tent, decor, food and event setup services for birthdays, anniversaries and family gatherings.",
     faq: [
       {
-        question: "Do you provide home birthday decoration?",
+        question: "Do you provide setup for birthdays and home celebrations?",
         answer:
-          "Yes, we provide birthday setup solutions for both home and venue-based celebrations.",
+          "Yes, we provide setup solutions for both home-based and venue-based family celebrations.",
       },
       {
         question: "Can I choose only decoration and chairs?",
@@ -197,10 +199,10 @@ const categoryDetailSeedData: CategoryDetail[] = [
     ],
   },
   {
-    id: "corporate-events",
-    category_id: "corporate-events",
+    id: "corporate-institutional",
+    category_id: "corporate-institutional",
     description:
-      "Browse tent setup, branding, stage, seating, catering, photography and sound support for office functions, conferences and business programs.",
+      "Browse tent setup, branding, stage, seating, catering, photography and sound support for office functions, conferences, exhibitions and institutional programs.",
     banner_url: "",
     image_urls: [],
     service_highlights: [
@@ -212,9 +214,9 @@ const categoryDetailSeedData: CategoryDetail[] = [
     starting_price: 30000,
     price_note:
       "Final quotation depends on audience size, selected services and event duration.",
-    meta_title: "Corporate Event Services | The TentWala",
+    meta_title: "Corporate and Institutional Event Services | The TentWala",
     meta_description:
-      "Discover professional event setup services for corporate meetings, conferences and company programs.",
+      "Discover professional event setup services for corporate meetings, conferences, school functions and institutional programs.",
     faq: [
       {
         question: "Do you support conferences and office programs?",
@@ -229,34 +231,34 @@ const categoryDetailSeedData: CategoryDetail[] = [
     ],
   },
   {
-    id: "incorporate-event",
-    category_id: "incorporate-event",
+    id: "religious-domestic-ceremonies",
+    category_id: "religious-domestic-ceremonies",
     description:
-      "Explore tent, seating, lighting, decor and catering services for custom event arrangements under the incorporate event category.",
+      "Explore tent, seating, lighting, decor and catering services for grih pravesh, havan, jagran, bhajan, kirtan, mundan and other domestic ceremonies.",
     banner_url: "",
     image_urls: [],
     service_highlights: [
-      "Flexible tent and seating arrangements",
-      "Custom decor and lighting support",
-      "Food and service coordination",
-      "Adaptable event setup options",
+      "Comfortable tent and seating arrangements",
+      "Simple decor and lighting support",
+      "Bhajan, havan and ritual-friendly layouts",
+      "Food service and guest coordination options",
     ],
     starting_price: 18000,
     price_note:
       "Quotation depends on selected services, quantity and duration requirements.",
-    meta_title: "Incorporate Event Services | The TentWala",
+    meta_title: "Religious and Domestic Ceremony Services | The TentWala",
     meta_description:
-      "Browse flexible tent, decor, seating and event arrangement services for incorporate events.",
+      "Browse tent, decor, seating and ceremony arrangement services for religious and domestic events.",
     faq: [
       {
-        question: "Can this category be used for custom event needs?",
+        question: "Do you provide arrangements for puja and domestic ceremonies?",
         answer:
-          "Yes, this category can support flexible event arrangements depending on the client requirement.",
+          "Yes, we can support puja, havan, jagran, housewarming and similar ceremony requirements.",
       },
       {
-        question: "Can I combine services from multiple product types?",
+        question: "Can I book only chairs, tent or catering for these ceremonies?",
         answer:
-          "Yes, the quotation can include a custom combination of required services.",
+          "Yes, the quotation can include only the selected services you need for the ceremony.",
       },
     ],
   },
@@ -268,6 +270,8 @@ export function FirestoreDemo() {
   const [error, setError] = useState("");
   const [isSeedingCategories, setIsSeedingCategories] = useState(false);
   const [isSeedingCategoryDetails, setIsSeedingCategoryDetails] = useState(false);
+  const [isSeedingAssistantConfig, setIsSeedingAssistantConfig] = useState(false);
+  const [isSeedingKnowledgeBase, setIsSeedingKnowledgeBase] = useState(false);
   const [isSeedingProducts, setIsSeedingProducts] = useState(false);
   const [seedStatus, setSeedStatus] = useState("");
 
@@ -340,6 +344,40 @@ export function FirestoreDemo() {
     }
   }
 
+  async function handleSeedKnowledgeBase() {
+    setIsSeedingKnowledgeBase(true);
+    setError("");
+    setSeedStatus("");
+
+    try {
+      await seedTentwalaKnowledgeBase();
+      setSeedStatus(
+        "Knowledge base uploaded to assistant_knowledge_bases and assistant_knowledge_chunks."
+      );
+    } catch (saveError) {
+      console.error(saveError);
+      setError("Could not upload assistant knowledge base to Firestore.");
+    } finally {
+      setIsSeedingKnowledgeBase(false);
+    }
+  }
+
+  async function handleSeedAssistantConfig() {
+    setIsSeedingAssistantConfig(true);
+    setError("");
+    setSeedStatus("");
+
+    try {
+      await seedTentwalaAssistantConfig();
+      setSeedStatus("Assistant config uploaded to assistant_configs.");
+    } catch (saveError) {
+      console.error(saveError);
+      setError("Could not upload assistant config to Firestore.");
+    } finally {
+      setIsSeedingAssistantConfig(false);
+    }
+  }
+
   return (
     <section className="rounded-[2rem] border border-zinc-300 bg-white p-6">
       <div className="space-y-2">
@@ -386,6 +424,28 @@ export function FirestoreDemo() {
           type="button"
         >
           {isSeedingProducts ? "Uploading products..." : "Upload products"}
+        </button>
+
+        <button
+          className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+          disabled={isSeedingKnowledgeBase}
+          onClick={() => void handleSeedKnowledgeBase()}
+          type="button"
+        >
+          {isSeedingKnowledgeBase
+            ? "Uploading knowledge base..."
+            : "Upload knowledge base"}
+        </button>
+
+        <button
+          className="h-11 rounded-full border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+          disabled={isSeedingAssistantConfig}
+          onClick={() => void handleSeedAssistantConfig()}
+          type="button"
+        >
+          {isSeedingAssistantConfig
+            ? "Uploading assistant config..."
+            : "Upload assistant config"}
         </button>
       </div>
 

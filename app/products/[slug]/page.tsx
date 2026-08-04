@@ -1,4 +1,5 @@
 import { ProductDetail } from "@/components/product-detail";
+import { SiteHeader } from "@/components/site-header";
 
 export default async function ProductPage({
   params,
@@ -8,8 +9,9 @@ export default async function ProductPage({
   const { slug } = await params;
 
   return (
-    <main className="min-h-screen bg-[#f5f5f4] px-4 py-6 text-zinc-950 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl">
+    <main className="min-h-screen bg-[#f5f5f4] px-4 pb-6 pt-36 text-zinc-950 sm:px-6 sm:pb-6 sm:pt-40 lg:px-8 lg:pt-44">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <SiteHeader />
         <ProductDetail slug={slug} />
       </div>
     </main>

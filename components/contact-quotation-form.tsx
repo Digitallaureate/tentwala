@@ -3,108 +3,24 @@
 import { FormEvent, useEffect, useState } from "react";
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
-type BudgetTierKey = "low" | "medium" | "high";
-
-type CategoryOption = {
-  id: string;
-  name: string;
-  short_description: string;
-};
-
-type ProductOption = {
-  id: string;
-  name: string;
-  item_type: string;
-  node_type?: string;
-  layer?: number;
-  core_product_ids?: string[];
-  optional_product_ids?: string[];
-  customer_selectable?: boolean;
-  quotation_enabled?: boolean;
-  short_description: string;
-  service_group?: string;
-  pricing_model: string;
-  price_tiers: {
-    high?: PriceTier;
-    low?: PriceTier;
-    medium?: PriceTier;
-  };
-  quotation_config: {
-    quotation_enabled?: boolean;
-    duration_label?: string;
-    duration_required?: boolean;
-    duration_unit?: string;
-    manual_review_required?: boolean;
-    minimum_duration?: number;
-    minimum_quantity?: number;
-    quantity_label?: string;
-    quantity_required?: boolean;
-    quantity_unit?: string;
-  };
-};
-
-function normalizeQuotationConfig(
-  config: ProductOption["quotation_config"] | undefined
-): ProductOption["quotation_config"] {
-  return {
-    quotation_enabled: config?.quotation_enabled ?? true,
-    quantity_required: config?.quantity_required ?? false,
-    duration_required: config?.duration_required ?? false,
-    manual_review_required: config?.manual_review_required ?? true,
-    quantity_label: config?.quantity_label,
-    quantity_unit: config?.quantity_unit,
-    minimum_quantity: config?.minimum_quantity,
-    duration_label: config?.duration_label,
-    duration_unit: config?.duration_unit,
-    minimum_duration: config?.minimum_duration,
-  };
-}
-
-type PriceTier = {
-  label: string;
-  maximum_price: number;
-  minimum_price: number;
-};
-
-function normalizePriceTiers(
-  tiers: ProductOption["price_tiers"] | undefined
-): ProductOption["price_tiers"] {
-  return {
-    low: tiers?.low,
-    medium: tiers?.medium,
-    high: tiers?.high,
-  };
-}
-
-type SelectedProductFormState = {
-  duration: string;
-  quantity: string;
-  selected: boolean;
-};
-
-type RequestPayload = {
-  budget_tier: BudgetTierKey;
-  category_id: string;
-  category_name: string;
-  event_type_id?: string;
-  event_type_name?: string;
-  event_location: string;
-  name: string;
-  notes: string;
-  phone_number: string;
-  request_type: "quotation";
-  selected_products: Array<{
-    duration: number;
-    estimated_maximum_price: number;
-    estimated_minimum_price: number;
-    item_type: string;
-    pricing_model: string;
-    product_id: string;
-    product_name: string;
-    quantity: number;
-  }>;
-};
+import { GoogleMapsLocationPicker } from "@/components/google-maps-location-picker";
+import {
+  buildQuotationPayload,
+  buildSelectedProductState,
+  buildWhatsAppMessage,
+  CategoryOption,
+  BudgetTierKey,
+  EventLocationSelection,
+  getBudgetLabel,
+  getBundleProductsForEventType,
+  getEstimatedTotals,
+  getEventTypeProducts,
+  getProductEstimate,
+  normalizePriceTiers,
+  normalizeQuotationConfig,
+  ProductOption,
+  SelectedProductFormState,
+} from "@/lib/quotation";
 
 const categoriesRef = collection(db, "product_categories");
 const productsRef = collection(db, "products");
@@ -113,93 +29,6 @@ const whatsappNumber = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "").replace(
   /\D/g,
   ""
 );
-
-function normalizeNumber(value: string, fallback: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function getBudgetLabel(tier: BudgetTierKey) {
-  if (tier === "low") {
-    return "Basic";
-  }
-
-  if (tier === "medium") {
-    return "Standard";
-  }
-
-  return "Premium";
-}
-
-function buildWhatsAppMessage(payload: RequestPayload) {
-  const productLines = payload.selected_products
-    .map((product, index) => {
-      const quantityText = `Quantity: ${product.quantity}`;
-      const durationText = product.duration > 1 ? `, Duration: ${product.duration}` : "";
-
-  return `${index + 1}. ${product.product_name}
-   Type: ${product.item_type}
-   ${quantityText}${durationText}
-   Estimate: ${
-     product.estimated_minimum_price === 0 &&
-     product.estimated_maximum_price === 0
-       ? "Manual review required"
-       : `Rs. ${product.estimated_minimum_price} - Rs. ${product.estimated_maximum_price}`
-   }`;
-    })
-    .join("\n");
-
-  return [
-    "New quotation request",
-    "",
-    `Name: ${payload.name}`,
-    `Phone: ${payload.phone_number}`,
-    `Location: ${payload.event_location}`,
-    `Category: ${payload.category_name}`,
-    `Budget tier: ${getBudgetLabel(payload.budget_tier)}`,
-    "",
-    "Selected products:",
-    productLines,
-    "",
-    `Total estimate: Rs. ${payload.selected_products.reduce(
-      (sum, product) => sum + product.estimated_minimum_price,
-      0
-    )} - Rs. ${payload.selected_products.reduce(
-      (sum, product) => sum + product.estimated_maximum_price,
-      0
-    )}`,
-    payload.notes ? "" : null,
-    payload.notes ? `Notes: ${payload.notes}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-function getProductEstimate(
-  product: ProductOption,
-  budgetTier: BudgetTierKey,
-  state: SelectedProductFormState
-) {
-  const tier = product.price_tiers[budgetTier];
-
-  if (!tier) {
-    return null;
-  }
-
-  const quantity = product.quotation_config.quantity_required
-    ? normalizeNumber(state.quantity, product.quotation_config.minimum_quantity ?? 1)
-    : 1;
-  const duration = product.quotation_config.duration_required
-    ? normalizeNumber(state.duration, product.quotation_config.minimum_duration ?? 1)
-    : 1;
-
-  return {
-    duration,
-    maximum: tier.maximum_price * quantity * duration,
-    minimum: tier.minimum_price * quantity * duration,
-    quantity,
-  };
-}
 
 export function ContactQuotationForm({
   initialCategoryId = "",
@@ -215,7 +44,10 @@ export function ContactQuotationForm({
   const [budgetTier, setBudgetTier] = useState<BudgetTierKey>("medium");
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [eventLocation, setEventLocation] = useState("");
+  const [eventLocation, setEventLocation] = useState<EventLocationSelection>({
+    address: "",
+    source: "manual",
+  });
   const [notes, setNotes] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Record<string, SelectedProductFormState>>({});
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -319,14 +151,38 @@ export function ContactQuotationForm({
           };
         });
 
-        setProducts(
-          nextProducts.filter(
-            (product) =>
-              product.customer_selectable !== false &&
-              product.quotation_enabled !== false
-          )
+        const selectableProducts = nextProducts.filter(
+          (product) =>
+            product.customer_selectable !== false &&
+            product.quotation_enabled !== false
         );
-        setSelectedProducts({});
+
+        const initialEventType = selectableProducts.find(
+          (product) =>
+            product.id === initialProductId &&
+            product.node_type === "event_type" &&
+            product.layer === 3
+        );
+        const nextSelectedEventTypeId =
+          selectedEventTypeId || initialEventType?.id || "";
+
+        setProducts(selectableProducts);
+
+        if (nextSelectedEventTypeId && nextSelectedEventTypeId !== selectedEventTypeId) {
+          setSelectedEventTypeId(nextSelectedEventTypeId);
+        }
+
+        setSelectedProducts((current) => {
+          if (nextSelectedEventTypeId) {
+            return buildSelectedProductState(
+              selectableProducts,
+              nextSelectedEventTypeId,
+              initialProductId
+            );
+          }
+
+          return current;
+        });
         setError("");
         setIsLoadingProducts(false);
       },
@@ -340,7 +196,7 @@ export function ContactQuotationForm({
     );
 
     return unsubscribe;
-  }, [initialProductId, selectedCategoryId]);
+  }, [initialProductId, selectedCategoryId, selectedEventTypeId]);
 
   function handleCategoryChange(nextCategoryId: string) {
     setIsLoadingProducts(Boolean(nextCategoryId));
@@ -354,32 +210,9 @@ export function ContactQuotationForm({
 
   function handleEventTypeChange(nextEventTypeId: string) {
     setSelectedEventTypeId(nextEventTypeId);
-    setSelectedProducts(() => {
-      const nextState: Record<string, SelectedProductFormState> = {};
-      const eventType = products.find((product) => product.id === nextEventTypeId);
-      const coreIds = new Set(eventType?.core_product_ids ?? []);
-      const optionalIds = new Set(eventType?.optional_product_ids ?? []);
-
-      for (const product of products) {
-        if (!coreIds.has(product.id) && !optionalIds.has(product.id)) {
-          continue;
-        }
-
-        nextState[product.id] = {
-          duration: product.quotation_config.minimum_duration
-            ? String(product.quotation_config.minimum_duration)
-            : "1",
-          quantity: product.quotation_config.minimum_quantity
-            ? String(product.quotation_config.minimum_quantity)
-            : "1",
-          selected:
-            coreIds.has(product.id) ||
-            (product.id === initialProductId && optionalIds.has(product.id)),
-        };
-      }
-
-      return nextState;
-    });
+    setSelectedProducts(
+      buildSelectedProductState(products, nextEventTypeId, initialProductId)
+    );
     setSuccessMessage("");
     setError("");
   }
@@ -418,60 +251,6 @@ export function ContactQuotationForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const selectedCategory = categories.find(
-      (category) => category.id === selectedCategoryId
-    );
-
-    if (!selectedCategory) {
-      setError("Please select a category before submitting.");
-      return;
-    }
-
-    const selectedEventType = products.find(
-      (product) => product.id === selectedEventTypeId && product.node_type === "event_type"
-    );
-
-    if (!selectedEventType) {
-      setError("Please select an event type before submitting.");
-      return;
-    }
-
-    const bundleIds = new Set([
-      ...(selectedEventType.core_product_ids ?? []),
-      ...(selectedEventType.optional_product_ids ?? []),
-    ]);
-
-    const chosenProducts = products
-      .filter((product) => bundleIds.has(product.id) && product.node_type === "bundle")
-      .filter((product) => selectedProducts[product.id]?.selected)
-      .map((product) => {
-        const state = selectedProducts[product.id];
-        const estimate = getProductEstimate(product, budgetTier, state);
-
-        if (!estimate) {
-          return null;
-        }
-
-        return {
-          duration: estimate.duration,
-          estimated_maximum_price: estimate.maximum,
-          estimated_minimum_price: estimate.minimum,
-          item_type:
-            product.node_type?.replaceAll("_", " ") ??
-            product.item_type.replaceAll("_", " "),
-          pricing_model: product.pricing_model,
-          product_id: product.id,
-          product_name: product.name,
-          quantity: estimate.quantity,
-        };
-      })
-      .filter(Boolean) as RequestPayload["selected_products"];
-
-    if (chosenProducts.length === 0) {
-      setError("Please select at least one product or service.");
-      return;
-    }
-
     if (!whatsappNumber) {
       setError(
         "WhatsApp number is not configured yet. Add NEXT_PUBLIC_WHATSAPP_NUMBER to your .env.local file."
@@ -484,19 +263,18 @@ export function ContactQuotationForm({
     setSuccessMessage("");
 
     try {
-      const payload: RequestPayload = {
-        budget_tier: budgetTier,
-        category_id: selectedCategory.id,
-        category_name: selectedCategory.name,
-        event_type_id: selectedEventType.id,
-        event_type_name: selectedEventType.name,
-        event_location: eventLocation.trim(),
-        name: name.trim(),
-        notes: notes.trim(),
-        phone_number: phoneNumber.trim(),
-        request_type: "quotation",
-        selected_products: chosenProducts,
-      };
+      const payload = buildQuotationPayload({
+        budgetTier,
+        categories,
+        eventLocation,
+        name,
+        notes,
+        phoneNumber,
+        products,
+        selectedCategoryId,
+        selectedEventTypeId,
+        selectedProducts,
+      });
 
       await addDoc(quotationRequestsRef, {
         ...payload,
@@ -519,7 +297,10 @@ export function ContactQuotationForm({
       );
       setName("");
       setPhoneNumber("");
-      setEventLocation("");
+      setEventLocation({
+        address: "",
+        source: "manual",
+      });
       setNotes("");
       setBudgetTier("medium");
       setSelectedProducts((current) => {
@@ -539,45 +320,26 @@ export function ContactQuotationForm({
       });
     } catch (submitError) {
       console.error(submitError);
-      setError("Could not submit the quotation request to Firestore.");
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Could not submit the quotation request to Firestore."
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  const eventTypeProducts = products.filter(
-    (product) => product.node_type === "event_type" && product.layer === 3
-  );
-  const selectedEventType = eventTypeProducts.find(
-    (product) => product.id === selectedEventTypeId
-  );
-  const coreBundleIdSet = new Set(selectedEventType?.core_product_ids ?? []);
-  const optionalBundleIdSet = new Set(selectedEventType?.optional_product_ids ?? []);
-  const bundleProducts = products.filter(
-    (product) =>
-      product.node_type === "bundle" &&
-      (coreBundleIdSet.has(product.id) || optionalBundleIdSet.has(product.id))
-  );
-  const estimatedTotals = bundleProducts.reduce(
-    (totals, product) => {
-      const state = selectedProducts[product.id];
-
-      if (!state?.selected) {
-        return totals;
-      }
-
-      const estimate = getProductEstimate(product, budgetTier, state);
-
-      if (!estimate) {
-        return totals;
-      }
-
-      return {
-        maximum: totals.maximum + estimate.maximum,
-        minimum: totals.minimum + estimate.minimum,
-      };
-    },
-    { maximum: 0, minimum: 0 }
+  const eventTypeProducts = getEventTypeProducts(products);
+  const {
+    bundleProducts,
+    coreBundleIdSet,
+    selectedEventType,
+  } = getBundleProductsForEventType(products, selectedEventTypeId);
+  const estimatedTotals = getEstimatedTotals(
+    bundleProducts,
+    selectedProducts,
+    budgetTier
   );
 
   return (
@@ -632,22 +394,12 @@ export function ContactQuotationForm({
               />
             </div>
 
-            <div className="space-y-2">
-              <label
-                className="text-sm font-semibold text-zinc-900"
-                htmlFor="location"
-              >
-                Event location
-              </label>
-              <input
-                className="h-12 w-full rounded-2xl border-2 border-zinc-300 bg-zinc-50 px-4 text-sm outline-none transition focus:border-zinc-500"
-                id="location"
-                onChange={(event) => setEventLocation(event.target.value)}
-                placeholder="City or venue location"
-                required
-                value={eventLocation}
-              />
-            </div>
+            <GoogleMapsLocationPicker
+              label="Event location"
+              onChange={setEventLocation}
+              required
+              value={eventLocation}
+            />
 
             <div className="space-y-2">
               <label
