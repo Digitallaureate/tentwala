@@ -136,15 +136,8 @@ export function GoogleMapsLocationPicker({
             )
           }
           onReady={() => {
-            if (window.google?.maps?.places?.Autocomplete) {
-              setScriptError("");
-              setIsScriptReady(true);
-              return;
-            }
-
-            setScriptError(
-              "Google Maps could not start. You can still type the location manually."
-            );
+            setScriptError("");
+            setIsScriptReady(true);
           }}
           src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
           strategy="afterInteractive"

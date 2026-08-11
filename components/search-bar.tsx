@@ -37,19 +37,19 @@ export function SearchBar({
 
   return (
     <form
-      className="flex h-14 w-full items-center gap-3 rounded-full border-2 border-zinc-300 bg-zinc-50 px-5 lg:max-w-xl"
+      className="flex min-h-12 w-full items-center gap-2 rounded-full border border-[#d7d4cf] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,243,237,0.92))] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:min-h-14 sm:gap-3 sm:px-5"
       onSubmit={handleSubmit}
     >
       <input
         aria-label="Search products"
-        className="w-full bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+        className="w-full min-w-0 bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 sm:text-[0.95rem]"
         onChange={(event) => setQuery(event.target.value)}
         placeholder={placeholder}
         type="search"
         value={query}
       />
       <button
-        className="rounded-full border border-zinc-900 bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-300 disabled:bg-zinc-300"
+        className="shrink-0 rounded-full border border-zinc-900 bg-zinc-900 px-4 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-300 disabled:bg-zinc-300 sm:px-5 sm:text-xs"
         disabled={isPending}
         type="submit"
       >
