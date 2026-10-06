@@ -130,6 +130,7 @@ export function GoogleMapsLocationPicker({
     <div className="space-y-3">
       {hasMapsKey ? (
         <Script
+          id="google-maps-places"
           onError={() =>
             setScriptError(
               "Google Maps failed to load. You can still type the location manually."
@@ -139,7 +140,7 @@ export function GoogleMapsLocationPicker({
             setScriptError("");
             setIsScriptReady(true);
           }}
-          src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&loading=async`}
           strategy="afterInteractive"
         />
       ) : null}

@@ -1,19 +1,20 @@
 import { ProductDetail } from "@/components/product-detail";
-import { SiteHeader } from "@/components/site-header";
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
+  const { from } = await searchParams;
+  const fromSlug = typeof from === "string" ? from : undefined;
 
   return (
-    <main className="min-h-screen bg-[#f5f5f4] px-4 pb-6 pt-36 text-zinc-950 sm:px-6 sm:pb-6 sm:pt-40 lg:px-8 lg:pt-44">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <SiteHeader />
-        <ProductDetail slug={slug} />
-      </div>
+    <main className="min-h-screen bg-[var(--color-bg)] px-5 pb-20 pt-28 text-black sm:px-8 lg:px-[120px] lg:pt-36">
+      {/* key remounts the page's data when navigating between products */}
+      <ProductDetail key={`${slug}:${fromSlug ?? ""}`} fromSlug={fromSlug} slug={slug} />
     </main>
   );
 }

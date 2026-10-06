@@ -1,30 +1,60 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --background: #faf7f2;
+  --foreground: #000000;
+  --color-primary: #b85c38;
+  --color-primary-soft: #dfb09f;
+  --color-primary-pale: #f0ddd6;
+  --color-gold: #c9a96e;
+  --color-gold-soft: #efe5d0;
+  --color-gold-pale: #f8f1e3;
+  --color-soft-white: #d9d9d9;
+  --color-muted: #a7a3a0;
+  --color-bg: #faf7f2;
+  --font-sans: var(--font-afacad), "Afacad", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Garamond, "Times New Roman", serif;
+  --font-serif: var(--font-judson), "Judson", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Garamond, "Times New Roman", serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-serif: var(--font-cormorant-garamond);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.brand-logo {
+  font-size: 28px;
+  line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .brand-logo {
+    font-size: 52px;
+  }
+}
+
+.floating-action-button {
+  width: 231px;
+  height: 59px;
+  border: 0.5px solid #ffffff;
+  border-radius: 40px;
+  background: linear-gradient(180deg, #c9a96e 0%, #a78e5f 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
 }

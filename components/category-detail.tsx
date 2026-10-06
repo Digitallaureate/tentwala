@@ -11,6 +11,18 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  ProductCard,
+  productCardClassName,
+  productCardGridClassName,
+  toProductCardData,
+  type ProductCardData,
+} from "@/components/product-card";
+import {
+  DetailBreadcrumb,
+  DetailGallery,
+  QuoteSidebar,
+} from "@/components/service-detail/shared";
 
 type CategoryDetailData = {
   id: string;
@@ -23,6 +35,8 @@ type CategoryDetailData = {
   banner_url?: string;
   image_urls?: string[];
   service_highlights?: string[];
+  service_cities?: string[];
+  events_heading?: string;
   starting_price?: number;
   price_note?: string;
   faq?: Array<{
@@ -31,33 +45,24 @@ type CategoryDetailData = {
   }>;
 };
 
-type CategoryProduct = {
-  id: string;
-  item_type: string;
+type CategoryEvent = ProductCardData & {
   node_type?: string;
   layer?: number;
-  name: string;
-  slug: string;
-  thumbnail_url?: string;
-  banner_url?: string;
-  pricing_model: string;
-  short_description: string;
-  price_tiers?: {
-    medium?: {
-      maximum_price?: number;
-      minimum_price?: number;
-    };
-  };
-  service_group?: string;
 };
+
+const MAX_EVENT_CARDS = 6;
 
 const categoriesRef = collection(db, "product_categories");
 const categoryDetailsRef = collection(db, "category_details");
 const productsRef = collection(db, "products");
 
+function toStringList(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item)) : undefined;
+}
+
 export function CategoryDetail({ slug }: { slug: string }) {
   const [category, setCategory] = useState<CategoryDetailData | null>(null);
-  const [products, setProducts] = useState<CategoryProduct[]>([]);
+  const [products, setProducts] = useState<CategoryEvent[]>([]);
   const [isCategoryLoading, setIsCategoryLoading] = useState(true);
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -91,6 +96,7 @@ export function CategoryDetail({ slug }: { slug: string }) {
           short_description: String(data.short_description ?? ""),
           thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
           banner_url: data.banner_url ? String(data.banner_url) : undefined,
+          service_cities: toStringList(data.service_cities),
           description: "",
         });
         setIsCategoryLoading(false);
@@ -134,12 +140,13 @@ export function CategoryDetail({ slug }: { slug: string }) {
                 category_id: String(data.category_id ?? current.id),
                 description: String(data.description ?? current.description),
                 banner_url: String(data.banner_url ?? ""),
-                image_urls: Array.isArray(data.image_urls)
-                  ? data.image_urls.map((image) => String(image))
-                  : [],
-                service_highlights: Array.isArray(data.service_highlights)
-                  ? data.service_highlights.map((item) => String(item))
-                  : [],
+                image_urls: toStringList(data.image_urls) ?? [],
+                service_highlights: toStringList(data.service_highlights) ?? [],
+                service_cities:
+                  toStringList(data.service_cities) ?? current.service_cities,
+                events_heading: data.events_heading
+                  ? String(data.events_heading)
+                  : undefined,
                 starting_price:
                   typeof data.starting_price === "number"
                     ? data.starting_price
@@ -184,22 +191,9 @@ export function CategoryDetail({ slug }: { slug: string }) {
             const data = entry.data();
 
             return {
-              id: entry.id,
-              item_type: String(data.item_type ?? ""),
+              ...toProductCardData(entry.id, data),
               node_type: data.node_type ? String(data.node_type) : undefined,
               layer: typeof data.layer === "number" ? data.layer : undefined,
-              name: String(data.name ?? ""),
-              slug: String(data.slug ?? entry.id),
-              thumbnail_url: data.thumbnail_url
-                ? String(data.thumbnail_url)
-                : undefined,
-              banner_url: data.banner_url ? String(data.banner_url) : undefined,
-              pricing_model: String(data.pricing_model ?? ""),
-              short_description: String(data.short_description ?? ""),
-              price_tiers: data.price_tiers as CategoryProduct["price_tiers"],
-              service_group: data.service_group
-                ? String(data.service_group)
-                : undefined,
             };
           })
         );
@@ -224,7 +218,7 @@ export function CategoryDetail({ slug }: { slug: string }) {
 
   if (error) {
     return (
-      <div className="rounded-[2rem] border-2 border-red-200 bg-red-50 p-6 text-sm text-red-700">
+      <div className="rounded-[20px] border-2 border-red-200 bg-red-50 p-6 text-sm text-red-700">
         {error}
       </div>
     );
@@ -232,225 +226,157 @@ export function CategoryDetail({ slug }: { slug: string }) {
 
   if (isCategoryLoading) {
     return (
-      <div className="space-y-6">
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <div className="h-3 w-28 rounded-full bg-zinc-200" />
-            <div className="h-10 w-2/3 rounded-2xl bg-zinc-900" />
-            <div className="h-3 w-full rounded-full bg-zinc-200" />
-            <div className="h-3 w-4/5 rounded-full bg-zinc-200" />
-          </div>
-        </section>
+      <div className="animate-pulse space-y-6">
+        <div className="h-6 w-56 rounded-full bg-[#efe9dd]" />
+        <div className="aspect-[950/621] w-full max-w-[950px] rounded-[20px] bg-[#efe9dd]" />
+        <div className="h-12 w-2/3 rounded-full bg-[#efe9dd]" />
       </div>
     );
   }
 
   if (!category) {
     return (
-      <div className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 text-sm text-zinc-600">
+      <div className="rounded-[20px] bg-white p-6 text-sm text-[#717171] shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
         Category not found.
       </div>
     );
   }
 
+  const galleryImages = Array.from(
+    new Set(
+      [
+        category.banner_url,
+        ...(category.image_urls ?? []),
+        category.thumbnail_url,
+      ].filter((image): image is string => Boolean(image))
+    )
+  );
+  // Lowest listed price among this category's event types; the category's own
+  // `starting_price` is only a fallback when no event has a price.
+  const lowestEventPrice = eventTypeProducts
+    .map((product) => product.starting_price)
+    .filter((price): price is number => typeof price === "number")
+    .reduce<number | undefined>(
+      (lowest, price) =>
+        lowest === undefined ? price : Math.min(lowest, price),
+      undefined
+    );
+  const startingPrice = lowestEventPrice ?? category.starting_price;
+  const description = category.description || category.short_description;
+  const highlights = category.service_highlights ?? [];
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-        <div className="flex flex-col gap-4">
-          <Link
-            className="text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
-            href="/"
-          >
-            Back to home
-          </Link>
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Category Detail
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              {category.name}
-            </h1>
-            <p className="max-w-3xl text-base leading-7 text-zinc-600">
-              {category.description || category.short_description}
-            </p>
-            {typeof category.starting_price === "number" ? (
-              <p className="text-sm font-medium text-zinc-700">
-                Starting from Rs. {category.starting_price}
-              </p>
-            ) : null}
-            {category.price_note ? (
-              <p className="max-w-3xl text-sm leading-6 text-zinc-500">
-                {category.price_note}
-              </p>
-            ) : null}
-          </div>
+    // Desktop sizes are Figma values (1920px frame, 1680px content) scaled by the
+    // content width, e.g. 62px title = 3.69cqw, 950px gallery = 56.55cqw.
+    <div className="mx-auto w-full max-w-[1680px] [container-type:inline-size]">
+      <DetailBreadcrumb crumbs={[{ label: category.name }]} />
 
-          {category.banner_url ? (
-            <div className="overflow-hidden rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50">
-              <img
-                alt={category.name}
-                className="h-72 w-full object-cover"
-                src={category.banner_url}
-              />
-            </div>
-          ) : null}
-
-          {category.image_urls && category.image_urls.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {category.image_urls.slice(0, 3).map((imageUrl, index) => (
-                <div
-                  key={`${imageUrl}-${index}`}
-                  className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50"
-                >
-                  <img
-                    alt={`${category.name} gallery ${index + 1}`}
-                    className="h-32 w-full object-cover"
-                    src={imageUrl}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
+      <div className="mt-6 flex flex-col gap-6 lg:mt-[2.4cqw] lg:flex-row lg:gap-[5cqw]">
+        <div className="lg:w-[56.55cqw] lg:shrink-0">
+          <DetailGallery images={galleryImages} name={category.name} />
         </div>
-      </section>
 
-      {category.service_highlights && category.service_highlights.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+        <QuoteSidebar
+          note={category.price_note}
+          quoteHref={`/contact?category=${encodeURIComponent(category.id)}`}
+          startingPrice={startingPrice}
+        />
+      </div>
+
+      <div className="mt-8 max-w-[62cqw] max-lg:max-w-none lg:mt-[2.6cqw]">
+        <h1 className="font-serif text-[clamp(30px,3.69cqw,62px)] leading-[1.29] text-black">
+          {category.name}
+        </h1>
+        {category.service_cities && category.service_cities.length > 0 ? (
+          <p className="text-[clamp(15px,1.667cqw,28px)] leading-[1.3] text-[var(--color-gold)]">
+            {category.service_cities.join(", ")}
+          </p>
+        ) : null}
+        {description ? (
+          <p className="mt-4 text-[clamp(15px,1.786cqw,30px)] leading-[1.13] text-[#717171] lg:mt-[1.2cqw]">
+            {description}
+          </p>
+        ) : null}
+
+        {highlights.length > 0 ? (
+          <>
+            <h2 className="mt-8 font-serif text-[clamp(22px,2.262cqw,38px)] leading-[1.2] text-black lg:mt-[1.8cqw]">
               Service Highlights
-            </p>
-            <ul className="grid gap-3 md:grid-cols-2">
-              {category.service_highlights.map((highlight) => (
-                <li
-                  key={highlight}
-                  className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-700"
-                >
+            </h2>
+            <ul className="mt-4 grid gap-x-[2.4cqw] gap-y-3 text-[clamp(15px,1.786cqw,30px)] leading-[1.13] text-[#717171] sm:grid-cols-2 lg:mt-[1.2cqw] lg:gap-y-[2cqw]">
+              {highlights.map((highlight) => (
+                <li key={highlight} className="flex gap-1">
+                  <span aria-hidden="true" className="text-[var(--color-primary)]">
+                    ✓
+                  </span>
                   {highlight}
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-      ) : null}
+          </>
+        ) : null}
+      </div>
 
-      <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Event Types
-            </p>
-            <p className="text-lg font-semibold text-zinc-900">
-              Event flows linked to {category.name}
-            </p>
-          </div>
-        </div>
+      <section className="mt-14 lg:mt-[4.8cqw]">
+        <h2 className="font-serif text-[clamp(28px,3.45cqw,58px)] leading-[1.38] text-black">
+          {category.events_heading ?? "Popular Events"}
+        </h2>
+        <div className="h-[2px] w-[110px] bg-[var(--color-gold)] lg:w-[150px]" />
 
-        {isProductsLoading ? (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <article
-                key={index}
-                className="rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50 p-5"
-              >
-                <div className="space-y-4">
-                  <div className="h-40 rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white" />
-                  <div className="space-y-2">
-                    <div className="h-6 w-2/3 rounded-full bg-zinc-200" />
-                    <div className="h-3 w-full rounded-full bg-zinc-200" />
-                    <div className="h-3 w-2/3 rounded-full bg-zinc-200" />
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : eventTypeProducts.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {eventTypeProducts.map((product) => {
-              const mediumTier = product.price_tiers?.medium;
-              const priceText =
-                typeof mediumTier?.minimum_price === "number" &&
-                typeof mediumTier?.maximum_price === "number"
-                  ? `Rs. ${mediumTier.minimum_price} - Rs. ${mediumTier.maximum_price}`
-                  : "Core bundles + optional add-ons";
-
-              return (
-                <Link
-                  key={product.id}
-                  className="block rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50 p-5 transition hover:border-zinc-500 hover:bg-white"
-                  href={`/products/${product.slug}`}
+        <div className="mt-8 lg:mt-[2.7cqw]">
+          {isProductsLoading ? (
+            <div className={productCardGridClassName}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`${productCardClassName} aspect-[530/545] animate-pulse`}
                 >
-                  <div className="space-y-4">
-                    {product.thumbnail_url || product.banner_url ? (
-                      <div className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-white">
-                        <img
-                          alt={product.name}
-                          className="h-40 w-full object-cover"
-                          src={product.thumbnail_url ?? product.banner_url}
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex h-40 items-center justify-center rounded-[1.25rem] border-2 border-dashed border-zinc-300 bg-white text-sm text-zinc-400">
-                        Event type preview
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <p className="text-lg font-semibold">{product.name}</p>
-                      <p className="text-sm text-zinc-600">
-                        {product.short_description}
-                      </p>
-                      <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-zinc-400">
-                        <span>
-                          {product.node_type?.replaceAll("_", " ") ??
-                            product.item_type.replaceAll("_", " ")}
-                        </span>
-                        {typeof product.layer === "number" ? (
-                          <span>L{product.layer}</span>
-                        ) : null}
-                        {product.service_group ? (
-                          <span>{product.service_group.replaceAll("-", " ")}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm text-zinc-600">{priceText}</div>
-                      <div className="flex h-10 w-28 items-center justify-center rounded-full border-2 border-zinc-900 bg-zinc-900 text-xs font-semibold uppercase tracking-[0.16em] text-white">
-                        View
-                      </div>
-                    </div>
-                  </div>
+                  <div className="h-[62%] bg-[#efe9dd]" />
+                </div>
+              ))}
+            </div>
+          ) : eventTypeProducts.length > 0 ? (
+            <>
+              <div className={productCardGridClassName}>
+                {eventTypeProducts.slice(0, MAX_EVENT_CARDS).map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <div className="mt-10 flex justify-end lg:mt-[3.6cqw]">
+                <Link
+                  className="text-[22px] leading-[40px] text-[var(--color-primary)] transition hover:underline lg:text-[clamp(22px,2.262cqw,38px)]"
+                  href={`/services?category=${encodeURIComponent(category.slug)}`}
+                >
+                  View All →
                 </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
-            No event types are linked to this category yet.
-          </div>
-        )}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-[20px] bg-white p-5 text-sm text-[#717171] shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
+              No event types are linked to this category yet.
+            </div>
+          )}
+        </div>
       </section>
 
       {category.faq && category.faq.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              FAQ
-            </p>
-            <div className="space-y-3">
-              {category.faq.map((item) => (
-                <article
-                  key={item.question}
-                  className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4"
-                >
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    {item.question}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">
-                    {item.answer}
-                  </p>
-                </article>
-              ))}
-            </div>
+        <section className="mt-14 lg:mt-[4.8cqw]">
+          <h2 className="font-serif text-[clamp(28px,3.45cqw,58px)] leading-[1.38] text-black">
+            FAQ
+          </h2>
+          <div className="h-[2px] w-[110px] bg-[var(--color-gold)] lg:w-[150px]" />
+          <div className="mt-8 space-y-4">
+            {category.faq.map((item) => (
+              <article
+                key={item.question}
+                className="rounded-[20px] bg-white p-5 shadow-[0_6px_24px_rgba(0,0,0,0.08)] sm:p-6"
+              >
+                <h3 className="font-serif text-xl text-black">{item.question}</h3>
+                <p className="mt-2 text-base leading-7 text-[#717171]">
+                  {item.answer}
+                </p>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}

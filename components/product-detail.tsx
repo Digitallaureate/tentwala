@@ -4,108 +4,195 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   collection,
+  doc,
   limit,
   onSnapshot,
   query,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getMinimumListedPrice } from "@/components/product-card";
+import {
+  DetailBreadcrumb,
+  DetailGallery,
+  QuoteSidebar,
+  type Crumb,
+} from "@/components/service-detail/shared";
+
+type QuotationConfig = {
+  duration_label?: string;
+  duration_required?: boolean;
+  minimum_duration?: number;
+  manual_review_required?: boolean;
+  minimum_quantity?: number;
+  quantity_label?: string;
+  quantity_required?: boolean;
+};
 
 type ProductDetailData = {
   id: string;
   name: string;
   slug: string;
-  item_type: string;
   node_type?: string;
   layer?: number;
-  component_product_ids?: string[];
-  core_product_ids?: string[];
-  optional_product_ids?: string[];
-  service_group?: string;
+  component_product_ids: string[];
+  core_product_ids: string[];
+  optional_product_ids: string[];
   short_description: string;
   description: string;
   thumbnail_url?: string;
   banner_url?: string;
-  pricing_model: string;
   image_urls: string[];
+  pricing_model: string;
   category_ids: string[];
-  event_type_ids?: string[];
-  service_highlights?: string[];
-  included_items?: string[];
-  ideal_for?: string[];
-  pricing_notes?: string[];
-  faq?: Array<{
-    question?: string;
-    answer?: string;
-  }>;
-  terms_and_conditions?: string[];
-  availability_note?: string;
-  price_tiers?: {
-    high?: {
-      label?: string;
-      maximum_price?: number;
-      minimum_price?: number;
-    };
-    low?: {
-      label?: string;
-      maximum_price?: number;
-      minimum_price?: number;
-    };
-    medium?: {
-      label?: string;
-      maximum_price?: number;
-      minimum_price?: number;
-    };
-  };
-  quotation_config?: {
-    duration_label?: string;
-    duration_required?: boolean;
-    duration_unit?: string;
-    manual_review_required?: boolean;
-    minimum_duration?: number;
-    minimum_quantity?: number;
-    quantity_label?: string;
-    quantity_required?: boolean;
-    quantity_unit?: string;
-    quotation_enabled?: boolean;
-  };
-  search_tags: string[];
+  service_cities: string[];
+  starting_price?: number;
+  quotation_config?: QuotationConfig;
 };
 
 type LinkedProductCard = {
   id: string;
   name: string;
   slug: string;
-  item_type: string;
-  node_type?: string;
-  layer?: number;
   thumbnail_url?: string;
-  short_description: string;
-  pricing_model: string;
 };
+
+type ParentEvent = { name: string; slug: string; category_ids: string[] };
+type ParentCategory = { name: string; slug: string };
 
 const productsRef = collection(db, "products");
 
-function formatRange(
-  minimumPrice?: number,
-  maximumPrice?: number,
-  label?: string
-) {
-  if (typeof minimumPrice !== "number" || typeof maximumPrice !== "number") {
-    return null;
-  }
-
-  return {
-    label: label ?? "Tier",
-    value: `Rs. ${minimumPrice} - Rs. ${maximumPrice}`,
-  };
+function toStringList(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item)) : [];
 }
 
-export function ProductDetail({ slug }: { slug: string }) {
+// "Number of days | Minimum 1"; "Not required" when the input isn't used.
+function describeInput(
+  isRequired: boolean | undefined,
+  label: string | undefined,
+  minimum: number | undefined
+) {
+  if (!isRequired) {
+    return "Not required";
+  }
+
+  const parts = [label || "Required"];
+
+  if (typeof minimum === "number") {
+    parts.push(`Minimum ${minimum}`);
+  }
+
+  return parts.join(" | ");
+}
+
+function buildQuotationRules(product: ProductDetailData) {
+  const config = product.quotation_config;
+
+  return [
+    {
+      label: "Pricing model",
+      value: product.pricing_model
+        ? product.pricing_model.replaceAll("_", " ")
+        : "On request",
+    },
+    {
+      label: "Manual review",
+      value: config?.manual_review_required
+        ? "Required for final quotation"
+        : "Not required",
+    },
+    {
+      label: "Duration input",
+      value: describeInput(
+        config?.duration_required,
+        config?.duration_label,
+        config?.minimum_duration
+      ),
+    },
+    {
+      label: "Quantity input",
+      value: describeInput(
+        config?.quantity_required,
+        config?.quantity_label,
+        config?.minimum_quantity
+      ),
+    },
+  ];
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <h2 className="font-serif text-[clamp(28px,3.45cqw,58px)] leading-[1.38] text-black">
+        {children}
+      </h2>
+      <div className="h-[2px] w-[110px] bg-[var(--color-gold)] lg:w-[150px]" />
+    </>
+  );
+}
+
+// Tile for a bundle linked from an event ("Core Services").
+// Sizes are Figma values (530px tile) scaled by tile width.
+function CoreServiceTile({
+  eventSlug,
+  item,
+  note,
+}: {
+  eventSlug: string;
+  item: LinkedProductCard;
+  note: string;
+}) {
+  return (
+    <div className="[container-type:inline-size]">
+      <Link
+        className="group relative block aspect-[530/385] overflow-hidden rounded-[20px] bg-[#efe9dd] shadow-[0_6px_24px_rgba(0,0,0,0.08)]"
+        href={`/products/${item.slug}?from=${encodeURIComponent(eventSlug)}`}
+      >
+        {item.thumbnail_url ? (
+          <img
+            alt={item.name}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+            src={item.thumbnail_url}
+          />
+        ) : (
+          <div className="h-full w-full bg-[linear-gradient(135deg,#efe9dd_0%,#faf7f2_52%,#e9dcc0_100%)]" />
+        )}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_55%,rgba(0,0,0,0.55)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 px-[4.5cqw] pb-[3.5cqw]">
+          <span className="inline-block rounded-full bg-[#e5e3df]/95 px-[3.77cqw] py-[0.75cqw] text-[clamp(11px,3.77cqw,20px)] leading-[1.5] text-black">
+            {item.name}
+          </span>
+          <p className="mt-[0.5cqw] text-[clamp(10px,3.2cqw,17px)] leading-[1.4] text-white">
+            {note}
+          </p>
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+export function ProductDetail({
+  slug,
+  fromSlug,
+}: {
+  slug: string;
+  fromSlug?: string;
+}) {
   const [product, setProduct] = useState<ProductDetailData | null>(null);
   const [linkedProducts, setLinkedProducts] = useState<LinkedProductCard[]>([]);
+  const [parentEvent, setParentEvent] = useState<ParentEvent | null>(null);
+  const [parentCategory, setParentCategory] = useState<ParentCategory | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const productId = product?.id;
+  const productLayer = product?.layer;
+  const ownCategoryId = product?.category_ids[0];
+  const categoryId =
+    productLayer === 3
+      ? ownCategoryId
+      : (parentEvent?.category_ids[0] ?? ownCategoryId);
 
   useEffect(() => {
     const productQuery = query(productsRef, where("slug", "==", slug), limit(1));
@@ -126,65 +213,21 @@ export function ProductDetail({ slug }: { slug: string }) {
           id: entry.id,
           name: String(data.name ?? ""),
           slug: String(data.slug ?? entry.id),
-          item_type: String(data.item_type ?? ""),
           node_type: data.node_type ? String(data.node_type) : undefined,
           layer: typeof data.layer === "number" ? data.layer : undefined,
-          component_product_ids: Array.isArray(data.component_product_ids)
-            ? data.component_product_ids.map((value) => String(value))
-            : [],
-          core_product_ids: Array.isArray(data.core_product_ids)
-            ? data.core_product_ids.map((value) => String(value))
-            : [],
-          optional_product_ids: Array.isArray(data.optional_product_ids)
-            ? data.optional_product_ids.map((value) => String(value))
-            : [],
-          service_group: data.service_group
-            ? String(data.service_group)
-            : undefined,
+          component_product_ids: toStringList(data.component_product_ids),
+          core_product_ids: toStringList(data.core_product_ids),
+          optional_product_ids: toStringList(data.optional_product_ids),
           short_description: String(data.short_description ?? ""),
           description: String(data.description ?? ""),
           thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
           banner_url: data.banner_url ? String(data.banner_url) : undefined,
+          image_urls: toStringList(data.image_urls),
           pricing_model: String(data.pricing_model ?? ""),
-          image_urls: Array.isArray(data.image_urls)
-            ? data.image_urls.map((image) => String(image))
-            : [],
-          category_ids: Array.isArray(data.category_ids)
-            ? data.category_ids.map((categoryId) => String(categoryId))
-            : [],
-          event_type_ids: Array.isArray(data.event_type_ids)
-            ? data.event_type_ids.map((eventTypeId) => String(eventTypeId))
-            : [],
-          price_tiers: data.price_tiers as ProductDetailData["price_tiers"],
-          quotation_config:
-            data.quotation_config as ProductDetailData["quotation_config"],
-          service_highlights: Array.isArray(data.service_highlights)
-            ? data.service_highlights.map((item) => String(item))
-            : [],
-          included_items: Array.isArray(data.included_items)
-            ? data.included_items.map((item) => String(item))
-            : [],
-          ideal_for: Array.isArray(data.ideal_for)
-            ? data.ideal_for.map((item) => String(item))
-            : [],
-          pricing_notes: Array.isArray(data.pricing_notes)
-            ? data.pricing_notes.map((item) => String(item))
-            : [],
-          faq: Array.isArray(data.faq)
-            ? data.faq.map((item) => ({
-                question: item?.question ? String(item.question) : "",
-                answer: item?.answer ? String(item.answer) : "",
-              }))
-            : [],
-          terms_and_conditions: Array.isArray(data.terms_and_conditions)
-            ? data.terms_and_conditions.map((item) => String(item))
-            : [],
-          availability_note: data.availability_note
-            ? String(data.availability_note)
-            : undefined,
-          search_tags: Array.isArray(data.search_tags)
-            ? data.search_tags.map((tag) => String(tag))
-            : [],
+          category_ids: toStringList(data.category_ids),
+          service_cities: toStringList(data.service_cities),
+          starting_price: getMinimumListedPrice(data.price_tiers),
+          quotation_config: data.quotation_config as QuotationConfig | undefined,
         });
         setError("");
         setIsLoading(false);
@@ -199,6 +242,7 @@ export function ProductDetail({ slug }: { slug: string }) {
     return unsubscribe;
   }, [slug]);
 
+  // Items shown on the page: core bundles for an event, component items for a bundle.
   useEffect(() => {
     if (!product) {
       return;
@@ -206,9 +250,9 @@ export function ProductDetail({ slug }: { slug: string }) {
 
     const linkedIds = Array.from(
       new Set([
-        ...(product.component_product_ids ?? []),
-        ...(product.core_product_ids ?? []),
-        ...(product.optional_product_ids ?? []),
+        ...product.component_product_ids,
+        ...product.core_product_ids,
+        ...product.optional_product_ids,
       ])
     );
 
@@ -240,14 +284,9 @@ export function ProductDetail({ slug }: { slug: string }) {
                 id: entry.id,
                 name: String(data.name ?? ""),
                 slug: String(data.slug ?? entry.id),
-                item_type: String(data.item_type ?? ""),
-                node_type: data.node_type ? String(data.node_type) : undefined,
-                layer: typeof data.layer === "number" ? data.layer : undefined,
                 thumbnail_url: data.thumbnail_url
                   ? String(data.thumbnail_url)
                   : undefined,
-                short_description: String(data.short_description ?? ""),
-                pricing_model: String(data.pricing_model ?? ""),
               });
             }
 
@@ -270,9 +309,71 @@ export function ProductDetail({ slug }: { slug: string }) {
     };
   }, [product]);
 
+  // For a bundle or item, find the event it was opened from (breadcrumb only).
+  useEffect(() => {
+    if (!productId || productLayer === 3) {
+      return;
+    }
+
+    const parentQuery = fromSlug
+      ? query(productsRef, where("slug", "==", fromSlug), limit(1))
+      : productLayer === 2
+        ? query(
+            productsRef,
+            where("core_product_ids", "array-contains", productId),
+            limit(1)
+          )
+        : null;
+
+    if (!parentQuery) {
+      return;
+    }
+
+    return onSnapshot(
+      parentQuery,
+      (snapshot) => {
+        const data = snapshot.docs[0]?.data();
+
+        setParentEvent(
+          data
+            ? {
+                name: String(data.name ?? ""),
+                slug: String(data.slug ?? ""),
+                category_ids: toStringList(data.category_ids),
+              }
+            : null
+        );
+      },
+      (snapshotError) => console.error(snapshotError)
+    );
+  }, [productId, productLayer, fromSlug]);
+
+  useEffect(() => {
+    if (!categoryId) {
+      return;
+    }
+
+    return onSnapshot(
+      doc(db, "product_categories", categoryId),
+      (snapshot) => {
+        const data = snapshot.data();
+
+        setParentCategory(
+          data
+            ? {
+                name: String(data.name ?? ""),
+                slug: String(data.slug ?? snapshot.id),
+              }
+            : null
+        );
+      },
+      (snapshotError) => console.error(snapshotError)
+    );
+  }, [categoryId]);
+
   if (error) {
     return (
-      <div className="rounded-[2rem] border-2 border-red-200 bg-red-50 p-6 text-sm text-red-700">
+      <div className="rounded-[20px] border-2 border-red-200 bg-red-50 p-6 text-sm text-red-700">
         {error}
       </div>
     );
@@ -280,532 +381,211 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   if (isLoading) {
     return (
-      <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-        <div className="space-y-4">
-          <div className="h-3 w-28 rounded-full bg-zinc-200" />
-          <div className="h-10 w-2/3 rounded-2xl bg-zinc-900" />
-          <div className="h-3 w-full rounded-full bg-zinc-200" />
-          <div className="h-3 w-4/5 rounded-full bg-zinc-200" />
-        </div>
-      </section>
+      <div className="animate-pulse space-y-6">
+        <div className="h-6 w-72 rounded-full bg-[#efe9dd]" />
+        <div className="aspect-[950/621] w-full max-w-[950px] rounded-[20px] bg-[#efe9dd]" />
+        <div className="h-12 w-2/3 rounded-full bg-[#efe9dd]" />
+      </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 text-sm text-zinc-600">
+      <div className="rounded-[20px] bg-white p-6 text-sm text-[#717171] shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
         Product not found.
       </div>
     );
   }
 
-  const priceRanges = [
-    formatRange(
-      product.price_tiers?.low?.minimum_price,
-      product.price_tiers?.low?.maximum_price,
-      product.price_tiers?.low?.label
-    ),
-    formatRange(
-      product.price_tiers?.medium?.minimum_price,
-      product.price_tiers?.medium?.maximum_price,
-      product.price_tiers?.medium?.label
-    ),
-    formatRange(
-      product.price_tiers?.high?.minimum_price,
-      product.price_tiers?.high?.maximum_price,
-      product.price_tiers?.high?.label
-    ),
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const linkedProductMap = new Map(
-    linkedProducts.map((linkedProduct) => [linkedProduct.id, linkedProduct])
+  const isEvent = product.layer === 3;
+  const linkedById = new Map(linkedProducts.map((item) => [item.id, item]));
+  const coreServices = product.core_product_ids
+    .map((id) => linkedById.get(id))
+    .filter((item): item is LinkedProductCard => Boolean(item));
+  const optionalServices = product.optional_product_ids
+    .map((id) => linkedById.get(id))
+    .filter((item): item is LinkedProductCard => Boolean(item));
+  const otherServices = product.component_product_ids
+    .map((id) => linkedById.get(id))
+    .filter((item): item is LinkedProductCard => Boolean(item));
+  const galleryImages = Array.from(
+    new Set(
+      [product.banner_url, ...product.image_urls, product.thumbnail_url].filter(
+        (image): image is string => Boolean(image)
+      )
+    )
   );
-  const bundleComponents = (product.component_product_ids ?? [])
-    .map((id) => linkedProductMap.get(id))
-    .filter((value): value is LinkedProductCard => Boolean(value));
-  const coreProducts = (product.core_product_ids ?? [])
-    .map((id) => linkedProductMap.get(id))
-    .filter((value): value is LinkedProductCard => Boolean(value));
-  const optionalProducts = (product.optional_product_ids ?? [])
-    .map((id) => linkedProductMap.get(id))
-    .filter((value): value is LinkedProductCard => Boolean(value));
+  const description = product.description || product.short_description;
+  const quoteHref = `/contact?category=${encodeURIComponent(categoryId ?? "")}`;
+
+  const crumbs: Crumb[] = [];
+
+  if (parentCategory) {
+    crumbs.push({
+      label: parentCategory.name,
+      href: `/categories/${parentCategory.slug}`,
+    });
+  }
+
+  if (!isEvent && parentEvent) {
+    crumbs.push({
+      label: parentEvent.name,
+      href: `/products/${parentEvent.slug}`,
+    });
+  }
+
+  crumbs.push({ label: product.name });
+
+  const titleBlock = (
+    <>
+      <h1 className="font-serif text-[clamp(30px,3.69cqw,62px)] leading-[1.29] text-black">
+        {product.name}
+      </h1>
+      {product.service_cities.length > 0 ? (
+        <p className="text-[clamp(15px,1.667cqw,28px)] leading-[1.3] text-[var(--color-gold)]">
+          {product.service_cities.join(", ")}
+        </p>
+      ) : null}
+      {description ? (
+        <p className="mt-4 text-[clamp(15px,1.786cqw,30px)] leading-[1.13] text-[#717171] lg:mt-[1.2cqw]">
+          {description}
+        </p>
+      ) : null}
+    </>
+  );
+
+  // Event page: gallery + quote cards, then the core services tiles.
+  if (isEvent) {
+    return (
+      // Desktop sizes are Figma values (1920px frame, 1680px content) scaled by the
+      // content width, e.g. 62px title = 3.69cqw.
+      <div className="mx-auto w-full max-w-[1680px] [container-type:inline-size]">
+        <DetailBreadcrumb crumbs={crumbs} />
+
+        <div className="mt-6 flex flex-col gap-6 lg:mt-[2.4cqw] lg:flex-row lg:gap-[5cqw]">
+          <div className="lg:w-[56.55cqw] lg:shrink-0">
+            <DetailGallery images={galleryImages} name={product.name} />
+          </div>
+          <QuoteSidebar
+            quoteHref={quoteHref}
+            startingPrice={product.starting_price}
+          />
+        </div>
+
+        <div className="mt-8 max-w-[62cqw] max-lg:max-w-none lg:mt-[2.6cqw]">
+          {titleBlock}
+        </div>
+
+        {[
+          { title: "Core Services", items: coreServices, suffix: "is included." },
+          {
+            title: "Optional Services",
+            items: optionalServices,
+            suffix: "is available as an add-on.",
+          },
+        ].map((group) =>
+          group.items.length > 0 ? (
+            <section key={group.title} className="mt-14 lg:mt-[4.8cqw]">
+              <SectionTitle>{group.title}</SectionTitle>
+              <div className="mt-8 grid gap-6 md:grid-cols-2 lg:mt-[2.7cqw] lg:grid-cols-3 lg:gap-x-[43px] lg:gap-y-[25px]">
+                {group.items.map((item) => (
+                  <CoreServiceTile
+                    key={item.id}
+                    eventSlug={product.slug}
+                    item={item}
+                    note={`${item.name} ${group.suffix}`}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null
+        )}
+
+        {coreServices.length + optionalServices.length > 0 ? (
+          <div className="mt-10 flex justify-end lg:mt-[3.6cqw]">
+            {/* <Link
+              className="text-[22px] leading-[40px] text-[var(--color-primary)] transition hover:underline lg:text-[clamp(22px,2.262cqw,38px)]"
+              href="/services"
+            >
+              View All →
+            </Link> */}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // Service page (bundle or single item): gallery + details, then quotation rules.
+  const quotationRules = buildQuotationRules(product);
+  const requestQuoteClassName =
+    "flex h-[clamp(44px,3.33cqw,56px)] w-full items-center justify-center rounded-[10px] bg-[var(--color-primary)] text-[clamp(16px,1.667cqw,28px)] font-medium text-white transition hover:bg-[#9f4e2f]";
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-        <div className="flex flex-col gap-4">
+    <div className="mx-auto w-full max-w-[1680px] [container-type:inline-size]">
+      <DetailBreadcrumb crumbs={crumbs} />
+
+      <div className="mt-6 flex flex-col gap-6 lg:mt-[2.4cqw] lg:flex-row lg:gap-[3.9cqw]">
+        <div className="lg:w-[57.7cqw] lg:shrink-0">
+          <DetailGallery images={galleryImages} name={product.name} />
+        </div>
+
+        <div className="min-w-0 lg:flex-1">
+          {titleBlock}
+
+          {otherServices.length > 0 ? (
+            <>
+              <h2 className="mt-8 font-serif text-[clamp(22px,2.262cqw,38px)] leading-[1.2] text-black lg:mt-[1.8cqw]">
+                Other Services
+              </h2>
+              <ul className="mt-4 grid grid-cols-2 gap-3 lg:mt-[1.2cqw] lg:gap-[1.2cqw]">
+                {otherServices.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-1 rounded-[10px] bg-[#ebe6dd] px-3 py-2 text-[clamp(13px,1.55cqw,26px)] leading-[1.2] text-[#717171] lg:px-[1.2cqw] lg:py-[0.9cqw]"
+                  >
+                    <span aria-hidden="true" className="text-[var(--color-primary)]">
+                      ✓
+                    </span>
+                    {item.name}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
           <Link
-            className="text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
-            href="/"
+            className={`${requestQuoteClassName} mt-8 max-lg:hidden lg:mt-[2cqw]`}
+            href={quoteHref}
           >
-            Back to home
+            Request a Quote →
           </Link>
-
-          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-4">
-              {product.banner_url ? (
-                <div className="overflow-hidden rounded-[1.75rem] border-2 border-zinc-300 bg-zinc-50">
-                  <img
-                    alt={product.name}
-                    className="h-72 w-full object-cover"
-                    src={product.banner_url}
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-72 items-end rounded-[1.75rem] border-2 border-dashed border-zinc-300 bg-[linear-gradient(135deg,#f4efe4_0%,#fff9f1_55%,#efe5d5_100%)] p-6 text-sm text-zinc-500">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                      Visual Preview
-                    </p>
-                    <p className="max-w-sm text-sm leading-6 text-zinc-600">
-                      Banner image can be added later from Firestore. This placeholder keeps the layout ready.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {product.image_urls.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {product.image_urls.map((imageUrl, index) => (
-                    <div
-                      key={`${imageUrl}-${index}`}
-                      className="overflow-hidden rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50"
-                    >
-                      <img
-                        alt={`${product.name} gallery ${index + 1}`}
-                        className="h-36 w-full object-cover"
-                        src={imageUrl}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                  Product Detail
-                </p>
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                  {product.name}
-                </h1>
-                <p className="text-base leading-7 text-zinc-600">
-                  {product.description || product.short_description}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
-                <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
-                  {product.node_type?.replaceAll("_", " ") ??
-                    product.item_type.replaceAll("_", " ")}
-                </span>
-                {typeof product.layer === "number" ? (
-                  <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
-                    L{product.layer}
-                  </span>
-                ) : null}
-                {product.service_group ? (
-                  <span className="rounded-full border border-zinc-300 bg-zinc-50 px-3 py-1">
-                    {product.service_group.replaceAll("-", " ")}
-                  </span>
-                ) : null}
-              </div>
-
-              {priceRanges.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {priceRanges.map((range) => (
-                    <div
-                      key={range.label}
-                      className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4"
-                    >
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                        {range.label}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-zinc-900">
-                        {range.value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="pt-2">
-                <Link
-                  className="inline-flex h-11 items-center justify-center rounded-full border-2 border-zinc-900 bg-zinc-900 px-6 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800"
-                  href={`/contact?category=${encodeURIComponent(product.category_ids[0] ?? "")}&product=${encodeURIComponent(product.id)}`}
-                >
-                  Get quotation
-                </Link>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
+
+      <section className="mt-10 lg:mt-[4.5cqw]">
+        <h2 className="font-serif text-[clamp(24px,2.62cqw,44px)] leading-[1.3] text-black">
+          Quotation Rules
+        </h2>
+        <dl className="mt-4 grid gap-5 rounded-[20px] bg-[#ebe6dd] p-5 sm:grid-cols-2 lg:mt-[1cqw] lg:grid-cols-4 lg:gap-0 lg:px-0 lg:py-[1.6cqw]">
+          {quotationRules.map((rule) => (
+            <div
+              key={rule.label}
+              className="lg:border-l lg:border-black/15 lg:px-[2.4cqw] lg:first:border-l-0"
+            >
+              <dt className="text-[clamp(15px,1.55cqw,26px)] font-medium leading-[1.3] text-black">
+                {rule.label}
+              </dt>
+              <dd className="text-[clamp(13px,1.3cqw,22px)] leading-[1.4] text-[#717171]">
+                {rule.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
-      {product.service_highlights && product.service_highlights.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Service Highlights
-            </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {product.service_highlights.map((highlight) => (
-                <div
-                  key={highlight}
-                  className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700"
-                >
-                  {highlight}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {(product.included_items && product.included_items.length > 0) ||
-      (product.ideal_for && product.ideal_for.length > 0) ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="grid gap-6 md:grid-cols-2">
-            {product.included_items && product.included_items.length > 0 ? (
-              <div className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                  Included
-                </p>
-                <div className="space-y-3">
-                  {product.included_items.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-700"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {product.ideal_for && product.ideal_for.length > 0 ? (
-              <div className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                  Ideal For
-                </p>
-                <div className="space-y-3">
-                  {product.ideal_for.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-700"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-            Quotation Rules
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">
-                Pricing model
-              </p>
-              <p className="mt-2 text-sm text-zinc-600">
-                {product.pricing_model.replaceAll("_", " ")}
-              </p>
-            </div>
-
-            <div className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">
-                Manual review
-              </p>
-              <p className="mt-2 text-sm text-zinc-600">
-                {product.quotation_config?.manual_review_required
-                  ? "Required for final quotation"
-                  : "Not required by default"}
-              </p>
-            </div>
-
-            {product.quotation_config?.quantity_required ? (
-              <div className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">
-                  Quantity input
-                </p>
-                <p className="mt-2 text-sm text-zinc-600">
-                  {product.quotation_config.quantity_label ??
-                    "Quantity required"}
-                  {product.quotation_config.minimum_quantity
-                    ? ` | Minimum ${product.quotation_config.minimum_quantity}`
-                    : ""}
-                </p>
-              </div>
-            ) : null}
-
-            {product.quotation_config?.duration_required ? (
-              <div className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4">
-                <p className="text-sm font-semibold text-zinc-900">
-                  Duration input
-                </p>
-                <p className="mt-2 text-sm text-zinc-600">
-                  {product.quotation_config.duration_label ??
-                    "Duration required"}
-                  {product.quotation_config.minimum_duration
-                    ? ` | Minimum ${product.quotation_config.minimum_duration}`
-                    : ""}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
-      {(product.pricing_notes && product.pricing_notes.length > 0) ||
-      product.availability_note ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
-            {product.pricing_notes && product.pricing_notes.length > 0 ? (
-              <div className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                  Pricing Notes
-                </p>
-                <div className="space-y-3">
-                  {product.pricing_notes.map((note) => (
-                    <div
-                      key={note}
-                      className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700"
-                    >
-                      {note}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {product.availability_note ? (
-              <div className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                  Availability
-                </p>
-                <div className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700">
-                  {product.availability_note}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {product.faq && product.faq.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Frequently Asked Questions
-            </p>
-            <div className="space-y-3">
-              {product.faq.map((item, index) => (
-                <div
-                  key={`${item.question ?? "faq"}-${index}`}
-                  className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4"
-                >
-                  <p className="text-sm font-semibold text-zinc-900">
-                    {item.question}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">
-                    {item.answer}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {product.terms_and_conditions &&
-      product.terms_and_conditions.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Terms and Conditions
-            </p>
-            <div className="space-y-3">
-              {product.terms_and_conditions.map((term) => (
-                <div
-                  key={term}
-                  className="rounded-[1.25rem] border-2 border-zinc-300 bg-zinc-50 p-4 text-sm leading-6 text-zinc-700"
-                >
-                  {term}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {product.search_tags.length > 0 ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Search Keywords
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {product.search_tags.map((tag) => (
-                <div
-                  key={tag}
-                  className="rounded-full border-2 border-zinc-300 bg-zinc-50 px-4 py-2 text-sm text-zinc-700"
-                >
-                  {tag}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {((product.component_product_ids && product.component_product_ids.length > 0) ||
-        (product.core_product_ids && product.core_product_ids.length > 0) ||
-        (product.optional_product_ids && product.optional_product_ids.length > 0)) ? (
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-              Linked Products
-            </p>
-            {bundleComponents.length > 0 ? (
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Bundle Components</p>
-                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {bundleComponents.map((linkedProduct) => (
-                    <Link
-                      key={linkedProduct.id}
-                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
-                      href={`/products/${linkedProduct.slug}`}
-                    >
-                      <div className="space-y-3">
-                        {linkedProduct.thumbnail_url ? (
-                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
-                            <img
-                              alt={linkedProduct.name}
-                              className="h-36 w-full object-cover"
-                              src={linkedProduct.thumbnail_url}
-                            />
-                          </div>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                            {linkedProduct.node_type?.replaceAll("_", " ") ??
-                              linkedProduct.item_type.replaceAll("_", " ")}
-                          </span>
-                          {typeof linkedProduct.layer === "number" ? (
-                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                              L{linkedProduct.layer}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-base font-semibold text-zinc-900">
-                          {linkedProduct.name}
-                        </p>
-                        <p className="text-sm leading-6 text-zinc-600">
-                          {linkedProduct.short_description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {coreProducts.length > 0 ? (
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Core Products</p>
-                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {coreProducts.map((linkedProduct) => (
-                    <Link
-                      key={linkedProduct.id}
-                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
-                      href={`/products/${linkedProduct.slug}`}
-                    >
-                      <div className="space-y-3">
-                        {linkedProduct.thumbnail_url ? (
-                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
-                            <img
-                              alt={linkedProduct.name}
-                              className="h-36 w-full object-cover"
-                              src={linkedProduct.thumbnail_url}
-                            />
-                          </div>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                            {linkedProduct.node_type?.replaceAll("_", " ") ??
-                              linkedProduct.item_type.replaceAll("_", " ")}
-                          </span>
-                          {typeof linkedProduct.layer === "number" ? (
-                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                              L{linkedProduct.layer}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-base font-semibold text-zinc-900">
-                          {linkedProduct.name}
-                        </p>
-                        <p className="text-sm leading-6 text-zinc-600">
-                          {linkedProduct.short_description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {optionalProducts.length > 0 ? (
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">Optional Products</p>
-                <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {optionalProducts.map((linkedProduct) => (
-                    <Link
-                      key={linkedProduct.id}
-                      className="block rounded-[1.5rem] border-2 border-zinc-300 bg-zinc-50 p-4 transition hover:border-zinc-500 hover:bg-white"
-                      href={`/products/${linkedProduct.slug}`}
-                    >
-                      <div className="space-y-3">
-                        {linkedProduct.thumbnail_url ? (
-                          <div className="overflow-hidden rounded-[1rem] border border-zinc-300 bg-white">
-                            <img
-                              alt={linkedProduct.name}
-                              className="h-36 w-full object-cover"
-                              src={linkedProduct.thumbnail_url}
-                            />
-                          </div>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-                          <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                            {linkedProduct.node_type?.replaceAll("_", " ") ??
-                              linkedProduct.item_type.replaceAll("_", " ")}
-                          </span>
-                          {typeof linkedProduct.layer === "number" ? (
-                            <span className="rounded-full border border-zinc-300 bg-white px-3 py-1">
-                              L{linkedProduct.layer}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-base font-semibold text-zinc-900">
-                          {linkedProduct.name}
-                        </p>
-                        <p className="text-sm leading-6 text-zinc-600">
-                          {linkedProduct.short_description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      <Link className={`${requestQuoteClassName} mt-6 lg:hidden`} href={quoteHref}>
+        Request a Quote →
+      </Link>
     </div>
   );
 }

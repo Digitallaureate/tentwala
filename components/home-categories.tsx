@@ -155,26 +155,26 @@ export function HomeCategories() {
         {Array.from({ length: 4 }).map((_, index) => (
           <article
             key={index}
-            className="overflow-hidden rounded-[2.5rem] border border-[#e5d8c7] bg-[radial-gradient(circle_at_top_left,_rgba(216,240,244,0.95),_rgba(255,253,247,0.98)_48%,_rgba(255,248,240,0.94)_100%)] p-6 shadow-[0_24px_80px_rgba(60,43,24,0.08)] sm:p-8 lg:p-10"
+            className="overflow-hidden rounded-[20px] bg-white p-6 shadow-[0_6px_24px_rgba(0,0,0,0.08)] sm:p-8 lg:p-10"
           >
             <div className="grid gap-8 xl:grid-cols-[0.9fr_1.1fr] xl:items-center">
               <div className="space-y-6">
-                <div className="h-5 w-48 rounded-full bg-white/70" />
+                <div className="h-5 w-48 rounded-full bg-[#efe9dd]" />
                 <div className="space-y-3">
-                  <div className="h-8 w-2/3 rounded-full bg-white/80" />
-                  <div className="h-4 w-full rounded-full bg-white/70" />
-                  <div className="h-4 w-11/12 rounded-full bg-white/70" />
-                  <div className="h-4 w-4/5 rounded-full bg-white/70" />
+                  <div className="h-8 w-2/3 rounded-full bg-[#efe9dd]" />
+                  <div className="h-4 w-full rounded-full bg-[#efe9dd]" />
+                  <div className="h-4 w-11/12 rounded-full bg-[#efe9dd]" />
+                  <div className="h-4 w-4/5 rounded-full bg-[#efe9dd]" />
                 </div>
-                <div className="h-12 w-56 rounded-full bg-[#56b7c4]/80" />
+                <div className="h-12 w-56 rounded-full bg-[var(--color-gold)]/60" />
               </div>
               <div className="space-y-5">
-                <div className="aspect-[4/3] rounded-[2rem] bg-white/70" />
+                <div className="aspect-[4/3] rounded-[2rem] bg-[#efe9dd]" />
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {Array.from({ length: 4 }).map((__, thumbIndex) => (
                     <div
                       key={thumbIndex}
-                      className="aspect-[4/3] rounded-[1.4rem] bg-white/75"
+                      className="aspect-[4/3] rounded-[15px] bg-[#efe9dd]"
                     />
                   ))}
                 </div>
@@ -229,7 +229,7 @@ export function HomeCategories() {
         return (
           <article
             key={category.id}
-            className="overflow-hidden rounded-[2.5rem] border border-[#e5d8c7] bg-[radial-gradient(circle_at_top_left,_rgba(220,243,246,0.96),_rgba(255,253,247,0.98)_48%,_rgba(255,248,240,0.95)_100%)] p-6 shadow-[0_28px_90px_rgba(60,43,24,0.1)] sm:p-8 lg:p-10"
+            className="overflow-hidden rounded-[20px] bg-white p-6 shadow-[0_6px_24px_rgba(0,0,0,0.08)] sm:p-8 lg:p-10"
           >
             <div className="grid gap-8 xl:grid-cols-[0.92fr_1.08fr] xl:items-center">
               <div
@@ -237,8 +237,8 @@ export function HomeCategories() {
                   isEvenPanel ? "xl:order-2" : ""
                 }`}
               >
-                <div className="flex items-center gap-4 text-[#1d2d44]">
-                  <span className="font-serif text-3xl tracking-[0.2em] sm:text-4xl">
+                <div className="flex items-center gap-4 text-black">
+                  <span className="font-serif text-3xl tracking-[0.2em] text-[var(--color-gold)] sm:text-4xl">
                     {panelNumber}
                   </span>
                   <h3 className="font-serif text-3xl uppercase tracking-[0.08em] sm:text-4xl lg:text-5xl">
@@ -246,19 +246,19 @@ export function HomeCategories() {
                   </h3>
                 </div>
 
-                <p className="max-w-2xl text-base leading-8 text-zinc-700 sm:text-lg">
+                <p className="max-w-2xl text-base leading-8 text-[#717171] sm:text-lg">
                   {description}
                 </p>
 
                 <div className="flex flex-wrap gap-3">
                   <Link
-                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#56b7c4] px-7 text-sm font-semibold text-white transition hover:bg-[#3f9fac]"
+                    className="inline-flex min-h-12 items-center justify-center rounded-[15px] bg-[var(--color-primary)] px-7 text-sm font-medium text-white transition hover:bg-[#9f4e2f]"
                     href={`/categories/${category.slug}`}
                   >
                     Explore {category.name}
                   </Link>
                   <Link
-                    className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#1d2d44]/20 bg-white/75 px-7 text-sm font-semibold text-[#1d2d44] transition hover:bg-white"
+                    className="inline-flex min-h-12 items-center justify-center rounded-[15px] border border-black bg-white px-7 text-sm font-medium text-black transition hover:bg-black/5"
                     href={`/contact?category=${encodeURIComponent(category.id)}`}
                   >
                     Request Quote
@@ -274,10 +274,10 @@ export function HomeCategories() {
                         <button
                           key={`${category.id}-${imageUrl}-${imageIndex}`}
                           type="button"
-                          className={`group relative aspect-[4/3] overflow-hidden rounded-[1.4rem] border bg-white shadow-[0_18px_38px_rgba(29,45,68,0.08)] transition ${
+                          className={`group relative aspect-[4/3] overflow-hidden rounded-[15px] border bg-white shadow-[0_6px_18px_rgba(0,0,0,0.08)] transition ${
                             isActive
-                              ? "border-[#56b7c4] ring-2 ring-[#56b7c4]/30"
-                              : "border-white/60 hover:border-[#56b7c4]/60"
+                              ? "border-[var(--color-gold)] ring-2 ring-[var(--color-gold)]/30"
+                              : "border-transparent hover:border-[var(--color-gold)]"
                           }`}
                           onClick={() =>
                             handleImageChange(category.id, imageIndex)
@@ -298,7 +298,7 @@ export function HomeCategories() {
 
               <div className={isEvenPanel ? "xl:order-1" : ""}>
                 {activeImage ? (
-                  <div className="relative overflow-hidden rounded-[2rem] bg-[#e9f6f7] shadow-[0_26px_60px_rgba(29,45,68,0.16)]">
+                  <div className="relative overflow-hidden rounded-[20px] bg-[#efe9dd] shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
                     <img
                       alt={category.name}
                       className="aspect-[4/3] w-full object-cover"
@@ -307,12 +307,12 @@ export function HomeCategories() {
                     />
                   </div>
                 ) : (
-                  <div className="flex aspect-[4/3] items-end rounded-[2rem] bg-[linear-gradient(135deg,#dff3f5_0%,#fffdf9_45%,#f8eadc_100%)] p-8 shadow-[0_26px_60px_rgba(29,45,68,0.1)]">
+                  <div className="flex aspect-[4/3] items-end rounded-[20px] bg-[linear-gradient(135deg,#efe9dd_0%,#faf7f2_52%,#e9dcc0_100%)] p-8 shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
                     <div className="space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#1d2d44]/60">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#717171]">
                         Category Preview
                       </p>
-                      <p className="max-w-md font-serif text-2xl text-[#1d2d44] sm:text-3xl">
+                      <p className="max-w-md font-serif text-2xl text-black sm:text-3xl">
                         {category.name}
                       </p>
                       <p className="max-w-lg text-sm leading-7 text-zinc-600 sm:text-base">

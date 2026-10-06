@@ -2017,18 +2017,18 @@ export function QuotationChatbot({
     <section
       className={
         isWidget
-          ? "flex h-full min-h-0 flex-col rounded-[1.9rem] bg-transparent"
+          ? "flex h-full min-h-0 flex-col bg-[var(--background)]"
           : "rounded-[2rem] border border-[#d8dfde] bg-white/88 p-5 shadow-[0_24px_60px_rgba(29,45,68,0.08)] backdrop-blur sm:p-7"
       }
     >
       <header
         className={
           isWidget
-            ? "rounded-[1.55rem] bg-[linear-gradient(135deg,#243f78,#2e356f)] px-5 py-5 text-white shadow-[0_18px_40px_rgba(36,63,120,0.28)]"
+            ? "relative flex h-[76px] shrink-0 items-center justify-between bg-[#AB9061] px-5 text-white"
             : "mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
         }
       >
-        <div className="space-y-2">
+        <div className={isWidget ? "space-y-0" : "space-y-2"}>
           {!isWidget ? (
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#4faebc]">
               TentWala AI Concierge
@@ -2038,11 +2038,11 @@ export function QuotationChatbot({
           <h2
             className={
               isWidget
-                ? "font-serif text-[1.7rem] leading-tight text-white"
+                ? "font-serif text-[26px] uppercase leading-none text-white"
                 : "font-serif text-3xl leading-tight text-[#1d2d44] sm:text-4xl"
             }
           >
-            TentWala
+            <span className="text-[var(--color-gold)]">TENT</span>WALA
           </h2>
 
           {!isWidget ? (
@@ -2053,11 +2053,11 @@ export function QuotationChatbot({
           ) : null}
         </div>
 
-        <div className={isWidget ? "absolute right-5 top-5 flex gap-2" : "flex gap-2"}>
+        <div className={isWidget ? "flex items-center gap-5" : "flex gap-2"}>
           <button
             className={
               isWidget
-                ? "inline-flex h-10 items-center justify-center rounded-full border border-white/18 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/16"
+                ? "inline-flex h-[32px] min-w-[90px] items-center justify-center rounded-full border border-white bg-transparent px-5 text-sm font-medium text-white transition hover:bg-white/10"
                 : "inline-flex h-11 items-center justify-center rounded-full border border-[#1d2d44]/10 bg-white/80 px-5 text-sm font-semibold text-[#1d2d44] transition hover:bg-white"
             }
             disabled={isSending}
@@ -2072,7 +2072,7 @@ export function QuotationChatbot({
               aria-label="Close chat"
               className={
                 isWidget
-                  ? "inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/18 bg-white/10 text-xl text-white transition hover:bg-white/16"
+                  ? "relative inline-flex h-9 w-9 items-center justify-center text-transparent transition hover:opacity-75 before:absolute before:h-[30px] before:w-0.5 before:rotate-45 before:bg-white after:absolute after:h-[30px] after:w-0.5 after:-rotate-45 after:bg-white"
                   : "inline-flex h-11 items-center justify-center rounded-full border border-[#1d2d44]/10 bg-white/80 px-4 text-sm font-semibold text-[#1d2d44] transition hover:bg-white"
               }
               onClick={onClose}
@@ -2087,26 +2087,26 @@ export function QuotationChatbot({
       <div
         className={
           isWidget
-            ? "mt-3 flex min-h-0 flex-1 flex-col gap-3"
+            ? "flex min-h-0 flex-1 flex-col"
             : "flex min-h-[38rem] flex-col gap-4"
         }
       >
         <div
           className={
             isWidget
-              ? "min-h-0 flex-1 overflow-y-auto rounded-[1.6rem] border border-[#ebe4d9] bg-[linear-gradient(180deg,#fffdfa,#f7f2ea)] p-4 shadow-[0_18px_36px_rgba(29,45,68,0.06)]"
+              ? "min-h-0 flex-1 overflow-y-auto bg-[var(--background)] px-3 py-5"
               : "min-h-0 flex-1 overflow-y-auto rounded-[1.8rem] border border-white/80 bg-[linear-gradient(180deg,rgba(249,247,243,0.98),rgba(243,238,231,0.92))] p-4 shadow-[0_18px_36px_rgba(29,45,68,0.07)] sm:p-5"
           }
         >
-          <div className="space-y-4">
+          <div className={isWidget ? "space-y-3" : "space-y-4"}>
             {messages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"
                   }`}
               >
-                <div className="max-w-[90%] space-y-1">
-                  {isWidget ? (
+                <div className={isWidget ? "max-w-[92%]" : "max-w-[90%] space-y-1"}>
+                  {!isWidget ? (
                     <p
                       className={`px-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${message.sender === "user"
                           ? "text-right text-[#51617f]"
@@ -2118,9 +2118,13 @@ export function QuotationChatbot({
                   ) : null}
 
                   <div
-                    className={`whitespace-pre-wrap rounded-[1.4rem] px-4 py-3 text-sm leading-7 shadow-[0_12px_28px_rgba(29,45,68,0.06)] sm:text-[0.96rem] ${message.sender === "user"
-                        ? "bg-[linear-gradient(135deg,#243f78,#2c4f91)] text-white shadow-[0_16px_28px_rgba(36,63,120,0.24)]"
-                        : "border border-[#e7e0d4] bg-[linear-gradient(180deg,#ffffff,#fbf7f0)] text-[#2f3f67]"
+                    className={`whitespace-pre-wrap px-4 py-3 text-sm leading-6 ${isWidget
+                      ? message.sender === "user"
+                        ? "rounded-[19px] bg-[#b49a68] text-white"
+                        : "rounded-[20px] border border-[var(--color-gold)] bg-transparent text-[#b49a68]"
+                      : message.sender === "user"
+                        ? "rounded-[1.4rem] bg-[linear-gradient(135deg,#243f78,#2c4f91)] text-white shadow-[0_16px_28px_rgba(36,63,120,0.24)] sm:text-[0.96rem]"
+                        : "rounded-[1.4rem] border border-[#e7e0d4] bg-[linear-gradient(180deg,#ffffff,#fbf7f0)] text-[#2f3f67] shadow-[0_12px_28px_rgba(29,45,68,0.06)] sm:text-[0.96rem]"
                       }`}
                   >
                     {message.text}
@@ -2131,7 +2135,7 @@ export function QuotationChatbot({
 
             {isSending ? (
               <div className="flex justify-start">
-                <div className="rounded-[1.4rem] border border-[#e7e0d4] bg-white px-4 py-3 text-sm text-[#6c7891] shadow-[0_12px_28px_rgba(29,45,68,0.06)]">
+                <div className="rounded-[20px] border border-[var(--color-gold)] bg-transparent px-4 py-3 text-sm text-[#b49a68]">
                   TentWala is thinking…
                 </div>
               </div>
@@ -2150,15 +2154,19 @@ export function QuotationChatbot({
         <form
           className={
             isWidget
-              ? "rounded-[1.6rem] border border-[#ebe4d9] bg-white/96 p-3 shadow-[0_18px_36px_rgba(29,45,68,0.06)]"
+              ? "border-t border-[#ead9bb] bg-[var(--background)] p-4"
               : "rounded-[1.8rem] border border-white/80 bg-white/92 p-4 shadow-[0_18px_40px_rgba(29,45,68,0.06)]"
           }
           onSubmit={(event) => void handleTextSubmit(event)}
         >
-          <div className="flex items-end gap-3">
+          <div className={isWidget ? "flex items-center gap-[11px]" : "flex items-end gap-3"}>
             <textarea
               aria-label="Chat message"
-              className="max-h-36 min-h-12 flex-1 resize-none rounded-[1.35rem] border border-[#d9d6d0] bg-white px-4 py-3 text-sm leading-6 text-[#1d2d44] outline-none transition placeholder:text-zinc-400 focus:border-[#243f78] disabled:cursor-not-allowed disabled:bg-zinc-50"
+              className={
+                isWidget
+                  ? "h-[47px] max-h-[47px] w-[min(100%,370px)] flex-1 resize-none rounded-[10px] border border-[var(--color-gold)] bg-transparent px-4 py-[13px] text-sm leading-5 text-black outline-none transition placeholder:text-[#a7a3a0] focus:border-[#a78e5f] disabled:cursor-not-allowed disabled:opacity-70"
+                  : "max-h-36 min-h-12 flex-1 resize-none rounded-[1.35rem] border border-[#d9d6d0] bg-white px-4 py-3 text-sm leading-6 text-[#1d2d44] outline-none transition placeholder:text-zinc-400 focus:border-[#243f78] disabled:cursor-not-allowed disabled:bg-zinc-50"
+              }
               disabled={isSending}
               onChange={(event) => setTextInput(event.target.value)}
               onKeyDown={(event) => {
@@ -2167,21 +2175,29 @@ export function QuotationChatbot({
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              placeholder="Tell us about your event or ask a question"
+              placeholder={
+                isWidget
+                  ? "Type your answer here..."
+                  : "Tell us about your event or ask a question"
+              }
               rows={1}
               value={textInput}
             />
 
             <button
-              className="inline-flex h-12 min-w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,#243f78,#2c4f91)] px-5 text-sm font-semibold text-white shadow-[0_16px_28px_rgba(36,63,120,0.2)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              className={
+                isWidget
+                  ? "relative inline-flex h-[47px] w-[47px] shrink-0 items-center justify-center rounded-[12px] bg-[#b49a68] text-transparent transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 before:absolute before:h-0.5 before:w-3 before:bg-white after:absolute after:h-2 after:w-2 after:rotate-45 after:border-r-2 after:border-t-2 after:border-white after:content-['']"
+                  : "inline-flex h-12 min-w-20 items-center justify-center rounded-full bg-[linear-gradient(135deg,#243f78,#2c4f91)] px-5 text-sm font-semibold text-white shadow-[0_16px_28px_rgba(36,63,120,0.2)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              }
               disabled={isSending || !textInput.trim()}
               type="submit"
             >
-              {isSending ? "Sending" : "Send"}
+              {isWidget ? "→" : isSending ? "Sending" : "Send"}
             </button>
           </div>
 
-          <p className="mt-2 px-1 text-xs leading-5 text-zinc-500">
+          <p className={isWidget ? "sr-only" : "mt-2 px-1 text-xs leading-5 text-zinc-500"}>
             Press Enter to send. Use Shift + Enter for a new line.
           </p>
         </form>
