@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   onSnapshot,
@@ -22,12 +22,24 @@ type CategoryFilter = { id: string; name: string; slug: string };
 
 type ServiceItem = ProductCardData & {
   category_ids: string[];
-  search_text: string;
+  customer_selectable: boolean;
+  search_words: string;
   tier_minimums: Partial<Record<BudgetTierKey, number>>;
 };
 
-// Same tiers as the quotation form ("Basic", "Standard", "Premium").
+type FilterOption = { value: string; label: string };
+
+// "services" lists the event types. "search" lists every customer-selectable
+// product. Both filter the budget with the quotation form's tiers.
+export type BrowserMode = "services" | "search";
+
+// Same tiers as the quotation form (Utsav, Bhavya, Shaahi).
 const budgetTierKeys: BudgetTierKey[] = ["low", "medium", "high"];
+
+const tierOptions: FilterOption[] = budgetTierKeys.map((key) => ({
+  value: key,
+  label: getBudgetLabel(key),
+}));
 
 // Cards shown before "View All →" reveals the rest (3 rows of 3).
 const INITIAL_VISIBLE_COUNT = 9;
@@ -58,58 +70,132 @@ function toTierMinimums(priceTiers: unknown) {
   return result;
 }
 
-function SelectControl({
-  children,
+function toggleValue(values: string[], value: string) {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
+}
+
+// Dropdown with checkboxes, so several options can be picked at once.
+function MultiSelect({
+  disabled = false,
   label,
   onChange,
-  disabled = false,
-  value,
+  options,
+  selected,
 }: {
-  children: React.ReactNode;
-  label: string;
-  onChange: (value: string) => void;
   disabled?: boolean;
-  value: string;
+  label: string;
+  onChange: (next: string[]) => void;
+  options: FilterOption[];
+  selected: string[];
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   return (
-    <div className="relative">
-      <select
+    <div className="relative" ref={rootRef}>
+      <button
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
         aria-label={label}
-        className={`${controlClassName} cursor-pointer appearance-none pr-10 disabled:cursor-not-allowed disabled:opacity-60 ${
-          value ? "" : "text-[#717171]"
+        className={`${controlClassName} flex cursor-pointer items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60 ${
+          selected.length > 0 ? "" : "text-[#717171]"
         }`}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        value={value}
+        onClick={() => setIsOpen((current) => !current)}
+        type="button"
       >
-        {children}
-      </select>
-      <svg
-        aria-hidden="true"
-        className="pointer-events-none absolute right-4 top-1/2 h-3 w-3 -translate-y-1/2 text-black"
-        fill="currentColor"
-        viewBox="0 0 12 12"
-      >
-        <path d="M2 4l4 4 4-4z" />
-      </svg>
+        <span className="truncate">
+          {label}
+          {selected.length > 0 ? ` (${selected.length})` : ""}
+        </span>
+        <svg
+          aria-hidden="true"
+          className={`h-3 w-3 shrink-0 text-black transition ${
+            isOpen ? "rotate-180" : ""
+          }`}
+          fill="currentColor"
+          viewBox="0 0 12 12"
+        >
+          <path d="M2 4l4 4 4-4z" />
+        </svg>
+      </button>
+
+      {isOpen ? (
+        <ul
+          aria-multiselectable="true"
+          className="absolute left-0 right-0 z-30 mt-2 min-w-[11rem] rounded-[10px] bg-white py-2 shadow-[0_8px_24px_rgba(0,0,0,0.14)]"
+          role="listbox"
+        >
+          {options.map((option) => {
+            const isChecked = selected.includes(option.value);
+
+            return (
+              <li key={option.value}>
+                <label className="flex cursor-pointer items-center gap-3 px-4 py-2 text-[clamp(13px,0.85cqw,15px)] text-[var(--color-primary)] transition hover:bg-[var(--color-gold-pale)]">
+                  <input
+                    checked={isChecked}
+                    className="h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+                    onChange={() => onChange(toggleValue(selected, option.value))}
+                    type="checkbox"
+                  />
+                  {option.label}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
 
 export function ServicesBrowser({
   initialCategorySlug = "",
+  initialQuery = "",
+  mode = "services",
 }: {
   initialCategorySlug?: string;
+  initialQuery?: string;
+  mode?: BrowserMode;
 }) {
   const [categories, setCategories] = useState<CategoryFilter[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedSlug, setSelectedSlug] = useState(initialCategorySlug);
-  const [searchText, setSearchText] = useState("");
-  const [location, setLocation] = useState("");
-  const [budget, setBudget] = useState<BudgetTierKey | "">("");
+  const [searchText, setSearchText] = useState(initialQuery);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [budgets, setBudgets] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const isSearch = mode === "search";
 
   useEffect(() => {
     const categoriesQuery = query(
@@ -138,11 +224,13 @@ export function ServicesBrowser({
 
   useEffect(() => {
     // Equality-only filters (no composite index needed); sorted below.
-    const servicesQuery = query(
-      productsRef,
-      where("is_active", "==", true),
-      where("node_type", "==", "event_type")
-    );
+    const servicesQuery = isSearch
+      ? query(productsRef, where("is_active", "==", true))
+      : query(
+          productsRef,
+          where("is_active", "==", true),
+          where("node_type", "==", "event_type")
+        );
 
     return onSnapshot(
       servicesQuery,
@@ -151,16 +239,37 @@ export function ServicesBrowser({
           snapshot.docs
             .map((entry): ServiceItem => {
               const data = entry.data();
+              const tags = Array.isArray(data.search_tags)
+                ? data.search_tags.map((tag) => String(tag))
+                : [];
 
               return {
                 ...toProductCardData(entry.id, data),
                 category_ids: Array.isArray(data.category_ids)
                   ? data.category_ids.map((item) => String(item))
                   : [],
-                search_text: String(data.search_text ?? ""),
+                customer_selectable:
+                  typeof data.customer_selectable === "boolean"
+                    ? data.customer_selectable
+                    : true,
+                search_words: [
+                  String(data.name ?? ""),
+                  String(data.short_description ?? ""),
+                  String(data.search_text ?? ""),
+                  String(data.item_type ?? ""),
+                  String(data.service_group ?? ""),
+                  String(data.highlight_text ?? ""),
+                  ...(Array.isArray(data.service_cities)
+                    ? data.service_cities.map((city) => String(city))
+                    : []),
+                  ...tags,
+                ]
+                  .join(" ")
+                  .toLowerCase(),
                 tier_minimums: toTierMinimums(data.price_tiers),
               };
             })
+            .filter((service) => service.customer_selectable)
             .sort((a, b) => a.sort_order - b.sort_order)
         );
         setError("");
@@ -174,29 +283,34 @@ export function ServicesBrowser({
         setIsLoading(false);
       }
     );
-  }, []);
+  }, [isSearch]);
 
-  function selectCategory(slug: string) {
-    setSelectedSlug(slug);
-    setShowAll(false);
-
-    // Keep the filter in the address so a filtered view can be shared.
+  // Keep the filters in the address so a view can be shared.
+  function syncUrl(changes: Record<string, string>) {
     const url = new URL(window.location.href);
 
-    if (slug) {
-      url.searchParams.set("category", slug);
-    } else {
-      url.searchParams.delete("category");
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
     }
 
     window.history.replaceState(null, "", url);
   }
 
-  const locationOptions = useMemo(
+  function selectCategory(slug: string) {
+    setSelectedSlug(slug);
+    setShowAll(false);
+    syncUrl({ category: slug });
+  }
+
+  const locationOptions = useMemo<FilterOption[]>(
     () =>
-      Array.from(
-        new Set(services.flatMap((service) => service.service_cities))
-      ).sort((a, b) => a.localeCompare(b)),
+      Array.from(new Set(services.flatMap((service) => service.service_cities)))
+        .sort((a, b) => a.localeCompare(b))
+        .map((city) => ({ value: city, label: city })),
     [services]
   );
 
@@ -205,7 +319,7 @@ export function ServicesBrowser({
   );
 
   const visibleServices = useMemo(() => {
-    const needle = searchText.trim().toLowerCase();
+    const tokens = searchText.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
     return services
       .filter((service) =>
@@ -214,47 +328,50 @@ export function ServicesBrowser({
           : true
       )
       .filter((service) =>
-        location ? service.service_cities.includes(location) : true
-      )
-      .filter((service) =>
-        budget ? typeof service.tier_minimums[budget] === "number" : true
-      )
-      .filter((service) =>
-        needle
-          ? [
-              service.name,
-              service.short_description,
-              service.service_group ?? "",
-              service.highlight_text ?? "",
-              service.service_cities.join(" "),
-              service.search_text,
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(needle)
+        locations.length > 0
+          ? service.service_cities.some((city) => locations.includes(city))
           : true
       )
-      .map((service) => ({
-        ...service,
-        // With a budget tier chosen, show that tier's starting price.
-        starting_price: budget
-          ? service.tier_minimums[budget]
-          : service.starting_price,
-      }));
-  }, [services, selectedCategory, location, budget, searchText]);
+      .filter((service) => {
+        if (budgets.length === 0) {
+          return true;
+        }
+
+        return budgets.some(
+          (tier) => typeof service.tier_minimums[tier as BudgetTierKey] === "number"
+        );
+      })
+      .filter((service) =>
+        tokens.every((token) => service.search_words.includes(token))
+      )
+      .map((service) => {
+        if (budgets.length === 0) {
+          return service;
+        }
+
+        // With budget tiers chosen, show the lowest price among those tiers.
+        const prices = budgets
+          .map((tier) => service.tier_minimums[tier as BudgetTierKey])
+          .filter((price): price is number => typeof price === "number");
+
+        return { ...service, starting_price: Math.min(...prices) };
+      });
+  }, [services, selectedCategory, locations, budgets, searchText]);
 
   const shownServices = showAll
     ? visibleServices
     : visibleServices.slice(0, INITIAL_VISIBLE_COUNT);
   const hasActiveFilters = Boolean(
-    selectedSlug || searchText || location || budget
+    selectedSlug || searchText || locations.length > 0 || budgets.length > 0
   );
 
   function clearFilters() {
     setSearchText("");
-    setLocation("");
-    setBudget("");
-    selectCategory("");
+    setLocations([]);
+    setBudgets([]);
+    setSelectedSlug("");
+    setShowAll(false);
+    syncUrl({ category: "", ...(isSearch ? { q: "" } : {}) });
   }
 
   return (
@@ -276,10 +393,16 @@ export function ServicesBrowser({
           </svg>
           <input
             aria-label="Search services"
-            className={`${controlClassName} pl-11`}
+            className={`${controlClassName} pl-11 ${
+              searchText ? "ring-1 ring-[var(--color-gold)]" : ""
+            }`}
             onChange={(event) => {
               setSearchText(event.target.value);
               setShowAll(false);
+
+              if (isSearch) {
+                syncUrl({ q: event.target.value.trim() });
+              }
             }}
             placeholder="Search for decoration, corporate event, catering etc.,"
             type="search"
@@ -288,40 +411,28 @@ export function ServicesBrowser({
         </div>
 
         <div className="lg:w-[21.9cqw] lg:shrink-0">
-          <SelectControl
+          <MultiSelect
             disabled={locationOptions.length === 0}
             label="Event Location"
-            onChange={(value) => {
-              setLocation(value);
+            onChange={(next) => {
+              setLocations(next);
               setShowAll(false);
             }}
-            value={location}
-          >
-            <option value="">Event Location</option>
-            {locationOptions.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </SelectControl>
+            options={locationOptions}
+            selected={locations}
+          />
         </div>
 
         <div className="lg:w-[21.1cqw] lg:shrink-0">
-          <SelectControl
+          <MultiSelect
             label="Budget Range"
-            onChange={(value) => {
-              setBudget(value as BudgetTierKey | "");
+            onChange={(next) => {
+              setBudgets(next);
               setShowAll(false);
             }}
-            value={budget}
-          >
-            <option value="">Budget Range</option>
-            {budgetTierKeys.map((key) => (
-              <option key={key} value={key}>
-                {getBudgetLabel(key)}
-              </option>
-            ))}
-          </SelectControl>
+            options={tierOptions}
+            selected={budgets}
+          />
         </div>
       </div>
 
@@ -370,7 +481,11 @@ export function ServicesBrowser({
           </div>
         ) : visibleServices.length === 0 ? (
           <div className="rounded-[20px] bg-white p-8 text-center text-[#717171] shadow-[0_6px_24px_rgba(0,0,0,0.08)]">
-            <p>No services match your filters.</p>
+            <p>
+              {searchText.trim()
+                ? `No services match “${searchText.trim()}”.`
+                : "No services match your filters."}
+            </p>
             {hasActiveFilters ? (
               <button
                 className="mt-3 text-[var(--color-primary)] underline"

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "export:firestore": "node scripts/export-firestore-data.mjs"
+    "export:firestore": "node scripts/export-firestore-data.mjs",
+    "import:pricing": "node scripts/import-pricing.mjs"
   },
   "dependencies": {
     "firebase": "^12.16.0",

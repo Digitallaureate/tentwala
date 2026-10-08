@@ -57,9 +57,9 @@ const allCategoryIds: ProductCategoryId[] = [
 ];
 
 const defaultPriceTiers = {
-  low: { label: "Basic", minimum_price: 1, maximum_price: 1 },
-  medium: { label: "Standard", minimum_price: 3, maximum_price: 3 },
-  high: { label: "Premium", minimum_price: 5, maximum_price: 5 },
+  low: { label: "Utsav", minimum_price: 1, maximum_price: 1 },
+  medium: { label: "Bhavya", minimum_price: 3, maximum_price: 3 },
+  high: { label: "Shaahi", minimum_price: 5, maximum_price: 5 },
 } satisfies DraftProductSeed["price_tiers"];
 
 function makeManualReviewConfig(

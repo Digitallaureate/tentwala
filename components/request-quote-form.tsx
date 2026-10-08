@@ -40,11 +40,9 @@ const collageImages = [
   "/quote_6.png",
 ];
 
-const budgetTiers: Array<{ key: BudgetTierKey; label: string }> = [
-  { key: "low", label: "Basic" },
-  { key: "medium", label: "Standard" },
-  { key: "high", label: "Premium" },
-];
+const budgetTiers: Array<{ key: BudgetTierKey; label: string }> = (
+  ["low", "medium", "high"] as const
+).map((key) => ({ key, label: getBudgetLabel(key) }));
 
 const categoriesRef = collection(db, "product_categories");
 const productsRef = collection(db, "products");
@@ -145,7 +143,6 @@ export function RequestQuoteForm({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [eventDate, setEventDate] = useState("");
-  const [today, setToday] = useState("");
   const [eventLocation, setEventLocation] = useState<EventLocationSelection>({
     address: "",
     source: "manual",
@@ -161,14 +158,6 @@ export function RequestQuoteForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  useEffect(() => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-
-    setToday(`${now.getFullYear()}-${month}-${day}`);
-  }, []);
 
   useEffect(() => {
     const categoriesQuery = query(
@@ -360,6 +349,12 @@ export function RequestQuoteForm({
     }));
   }
 
+  // Earliest selectable event date (today, in the visitor's timezone).
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(now.getDate()).padStart(2, "0")}`;
   const phoneDigits = phoneNumber.replace(/\D/g, "");
   const isPhoneValid = phoneDigits.length >= 10 && phoneDigits.length <= 13;
   const canSubmit =
@@ -682,7 +677,7 @@ export function RequestQuoteForm({
                                   </p>
                                   <p className="text-[clamp(13px,1.07cqw,18px)] text-black">
                                     {budgetConfig
-                                      ? `${budgetConfig.label}: Rs. ${budgetConfig.minimum_price} - Rs. ${budgetConfig.maximum_price}`
+                                      ? `${getBudgetLabel(budgetTier)}: Rs. ${budgetConfig.minimum_price} - Rs. ${budgetConfig.maximum_price}`
                                       : "Manual review required for final estimate"}
                                   </p>
                                 </div>
@@ -792,8 +787,9 @@ export function RequestQuoteForm({
                 <input
                   className={`${inputClassName} appearance-none sm:max-w-[48%]`}
                   id="event-date"
-                  min={today || undefined}
+                  min={today}
                   onChange={(event) => setEventDate(event.target.value)}
+                  suppressHydrationWarning
                   type="date"
                   value={eventDate}
                 />

@@ -1,34 +1,45 @@
-import { ProductSearchResults } from "@/components/product-search-results";
-import { SearchBar } from "@/components/search-bar";
+import { CtaSection } from "@/components/home/cta-section";
+import { ServicesBrowser } from "@/components/services-browser";
 
 export default async function SearchPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const params = await searchParams;
-  const queryText = Array.isArray(params.q) ? params.q[0] ?? "" : params.q ?? "";
+  const { q, category } = await searchParams;
+  const queryText = typeof q === "string" ? q : "";
+  const initialCategorySlug = typeof category === "string" ? category : "";
 
   return (
-    <main className="min-h-screen bg-[#f5f5f4] px-4 pb-6 pt-36 text-zinc-950 sm:px-6 sm:pb-6 sm:pt-40 lg:px-8 lg:pt-44">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <header className="rounded-[2rem] border-2 border-zinc-300 bg-white p-5 sm:p-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                Global Product Search
-              </p>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Search products across TentWala
-              </h1>
-            </div>
-            <SearchBar initialQuery={queryText} key={queryText} />
-          </div>
-        </header>
+    <main className="min-h-screen bg-[var(--color-bg)] pt-28 text-black lg:pt-36">
+      <div className="px-5 sm:px-8 lg:px-[120px]">
+        <div className="mx-auto w-full max-w-[1680px]">
+          <p className="text-base leading-[1.4] text-[var(--color-gold)] lg:text-[38px] lg:leading-[40px]">
+            Discover
+          </p>
+          <h1 className="font-serif text-[36px] leading-[1.2] text-black sm:text-5xl lg:text-[64px] lg:leading-[80px]">
+            Search Services
+          </h1>
+          <div className="h-[2px] w-[110px] bg-[var(--color-gold)] lg:w-[150px]" />
+          <p className="mt-3 max-w-[870px] text-[15px] leading-[1.45] text-[#717171] sm:text-lg lg:mt-4 lg:text-[28px]">
+            Browse curated event services. Find exactly what you need and
+            request a quote instantly.
+          </p>
 
-        <section className="rounded-[2rem] border-2 border-zinc-300 bg-white p-6 sm:p-8">
-          <ProductSearchResults queryText={queryText} />
-        </section>
+          <div className="mt-8 lg:mt-12">
+            {/* key remounts with the new text when the header search is used */}
+            <ServicesBrowser
+              initialCategorySlug={initialCategorySlug}
+              initialQuery={queryText}
+              key={queryText}
+              mode="search"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-16 lg:mt-24">
+        <CtaSection />
       </div>
     </main>
   );

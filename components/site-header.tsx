@@ -41,8 +41,8 @@ export function SiteHeader({ active }: SiteHeaderProps) {
     <header className="fixed inset-x-0 top-0 z-88">
       <div className="w-full">
         <div className="overflow-hidden border border-black/5 bg-transparent shadow-none sm:bg-[var(--background)] sm:shadow-[0_14px_44px_rgba(0,0,0,0.08)]">
-          <div className="mx-auto w-full px-4 py-3 sm:px-6 lg:px-[120px]">
-            <div className="flex items-center justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-8">
+          <div className="mx-auto w-full px-4 py-3 sm:px-6 lg:px-[clamp(24px,6.25vw,120px)]">
+            <div className="flex items-center justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-[clamp(16px,1.67vw,32px)]">
               <Link
                 className="brand-logo min-w-0 shrink-0 font-serif uppercase text-black lg:justify-self-start"
                 href="/"
@@ -51,7 +51,7 @@ export function SiteHeader({ active }: SiteHeaderProps) {
                 TENT<span className="text-[var(--color-gold)]">WALA</span>
               </Link>
 
-              <nav className="hidden items-center gap-8 justify-self-center text-[28px] font-Regular text-black lg:flex">
+              <nav className="hidden items-center gap-[clamp(16px,1.67vw,32px)] justify-self-center text-[clamp(15px,1.46vw,28px)] font-Regular text-black lg:flex">
                 {navItems.map((item) => {
                   const isActive = activeKey === item.key;
 
@@ -72,12 +72,12 @@ export function SiteHeader({ active }: SiteHeaderProps) {
               </nav>
 
               <div className="hidden min-w-0 items-center justify-end gap-3 justify-self-end lg:flex">
-                <div className="h-[48px] w-[250px] shrink-0">
+                <div className="h-[48px] w-[clamp(150px,13vw,250px)] shrink-0">
                   <SearchBar placeholder="Services, ..." compact />
                 </div>
 
                 <Link
-                  className={`inline-flex h-[48px] w-[178px] shrink-0 items-center justify-center rounded-[40px] text-sm font-medium text-white shadow-[0_10px_22px_rgba(184,92,56,0.22)] transition ${
+                  className={`inline-flex h-[48px] w-[clamp(110px,9.3vw,178px)] shrink-0 items-center justify-center rounded-[40px] text-sm font-medium text-white shadow-[0_10px_22px_rgba(184,92,56,0.22)] transition ${
                     activeKey === "book-now"
                       ? "bg-[var(--color-primary)]"
                       : "bg-[var(--color-primary)] hover:bg-[#9f4e2f]"

@@ -128,14 +128,14 @@ export function normalizeNumber(value: string, fallback: number) {
 
 export function getBudgetLabel(tier: BudgetTierKey) {
   if (tier === "low") {
-    return "Basic";
+    return "Utsav";
   }
 
   if (tier === "medium") {
-    return "Standard";
+    return "Bhavya";
   }
 
-  return "Premium";
+  return "Shaahi";
 }
 
 export function buildWhatsAppMessage(payload: RequestPayload) {

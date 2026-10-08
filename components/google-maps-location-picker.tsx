@@ -53,6 +53,8 @@ export function GoogleMapsLocationPicker({
         const placePicker = new placesLibrary.PlaceAutocompleteElement();
         placePicker.id = inputId;
         placePicker.className = "block";
+        // The site is light only; stop the picker following a dark OS theme.
+        placePicker.style.colorScheme = "light";
 
         placePicker.addEventListener(
           "gmp-select",
@@ -140,7 +142,7 @@ export function GoogleMapsLocationPicker({
             setScriptError("");
             setIsScriptReady(true);
           }}
-          src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places&loading=async`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`}
           strategy="afterInteractive"
         />
       ) : null}

@@ -10,6 +10,7 @@ export type ProductCardData = {
   thumbnail_url?: string;
   service_group?: string;
   sort_order: number;
+  category_ids: string[];
   card_tag?: string;
   is_top_rated: boolean;
   service_cities: string[];
@@ -57,6 +58,9 @@ export function toProductCardData(
     thumbnail_url: data.thumbnail_url ? String(data.thumbnail_url) : undefined,
     service_group: data.service_group ? String(data.service_group) : undefined,
     sort_order: Number(data.sort_order ?? 0),
+    category_ids: Array.isArray(data.category_ids)
+      ? data.category_ids.map((item) => String(item))
+      : [],
     card_tag: data.card_tag ? String(data.card_tag) : undefined,
     is_top_rated: data.is_top_rated === true,
     service_cities: Array.isArray(data.service_cities)
@@ -66,6 +70,19 @@ export function toProductCardData(
     starting_price: getMinimumListedPrice(data.price_tiers),
     price_unit: priceUnitByPricingModel[String(data.pricing_model)],
   };
+}
+
+// Quote form link that pre-selects this card's category and event.
+export function buildQuoteHref(product: ProductCardData) {
+  const params = new URLSearchParams();
+
+  if (product.category_ids[0]) {
+    params.set("category", product.category_ids[0]);
+  }
+
+  params.set("product", product.id);
+
+  return `/contact?${params.toString()}`;
 }
 
 export function formatPrice(value: number) {
@@ -169,7 +186,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             </Link>
             <Link
               className="inline-flex h-[clamp(36px,9.06cqw,48px)] w-[41.5cqw] items-center justify-center rounded-[15px] bg-[var(--color-primary)] text-[clamp(13px,4.15cqw,22px)] font-medium text-white transition hover:bg-[#9f4e2f]"
-              href="/contact"
+              href={buildQuoteHref(product)}
             >
               Get Quote
             </Link>

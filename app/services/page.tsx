@@ -19,6 +19,7 @@ export default async function ServicesPage({
           <h1 className="font-serif text-[36px] leading-[1.2] text-black sm:text-5xl lg:text-[64px] lg:leading-[80px]">
             Our Services
           </h1>
+          <div className="h-[2px] w-[110px] bg-[var(--color-gold)] lg:w-[150px]" />
           <p className="mt-3 max-w-[870px] text-[15px] leading-[1.45] text-[#717171] sm:text-lg lg:mt-4 lg:text-[28px]">
             Browse curated event services. Find exactly what you need and
             request a quote instantly.

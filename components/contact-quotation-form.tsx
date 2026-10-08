@@ -437,9 +437,9 @@ export function ContactQuotationForm({
                 }
                 value={budgetTier}
               >
-                <option value="low">Basic</option>
-                <option value="medium">Standard</option>
-                <option value="high">Premium</option>
+                <option value="low">{getBudgetLabel("low")}</option>
+                <option value="medium">{getBudgetLabel("medium")}</option>
+                <option value="high">{getBudgetLabel("high")}</option>
               </select>
             </div>
 

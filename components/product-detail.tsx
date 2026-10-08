@@ -57,7 +57,12 @@ type LinkedProductCard = {
   thumbnail_url?: string;
 };
 
-type ParentEvent = { name: string; slug: string; category_ids: string[] };
+type ParentEvent = {
+  id: string;
+  name: string;
+  slug: string;
+  category_ids: string[];
+};
 type ParentCategory = { name: string; slug: string };
 
 const productsRef = collection(db, "products");
@@ -337,6 +342,7 @@ export function ProductDetail({
         setParentEvent(
           data
             ? {
+                id: snapshot.docs[0].id,
                 name: String(data.name ?? ""),
                 slug: String(data.slug ?? ""),
                 category_ids: toStringList(data.category_ids),
@@ -416,7 +422,12 @@ export function ProductDetail({
     )
   );
   const description = product.description || product.short_description;
-  const quoteHref = `/contact?category=${encodeURIComponent(categoryId ?? "")}`;
+  // Pre-select the category and the event in the quote form: this event, or the
+  // event a service page was opened from.
+  const quoteEventId = isEvent ? product.id : parentEvent?.id;
+  const quoteHref = `/contact?category=${encodeURIComponent(categoryId ?? "")}${
+    quoteEventId ? `&product=${encodeURIComponent(quoteEventId)}` : ""
+  }`;
 
   const crumbs: Crumb[] = [];
 
