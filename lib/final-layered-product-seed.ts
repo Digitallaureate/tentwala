@@ -111,7 +111,7 @@ function makeBundleQuotationConfig(
         quantity_required: true,
         quantity_label: "Required generator load",
         quantity_unit: "kva",
-        minimum_quantity: 1,
+        minimum_quantity: 10,
         duration_required: true,
         duration_label: "Number of days",
         duration_unit: "day",

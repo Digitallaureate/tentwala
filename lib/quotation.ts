@@ -32,6 +32,13 @@ export type ProductOption = {
     low?: PriceTier;
     medium?: PriceTier;
   };
+  // Part of price_tiers that does not change with quantity/duration
+  // (e.g. flowers, lights, backdrop). Only the remainder is scaled.
+  fixed_price_tiers?: {
+    high?: PriceTier;
+    low?: PriceTier;
+    medium?: PriceTier;
+  };
   quotation_config: {
     quotation_enabled?: boolean;
     duration_label?: string;
@@ -201,19 +208,45 @@ export function getProductEstimate(
     return null;
   }
 
+  // Stored tier prices are the price for the minimum quantity / minimum
+  // duration. Work out the rate for one unit, then scale to what the user asked
+  // for. Values below the minimum are raised to the minimum.
+  const minimumQuantity = product.quotation_config.minimum_quantity ?? 1;
+  const minimumDuration = product.quotation_config.minimum_duration ?? 1;
+
   const quantity = product.quotation_config.quantity_required
-    ? normalizeNumber(state.quantity, product.quotation_config.minimum_quantity ?? 1)
+    ? Math.max(normalizeNumber(state.quantity, minimumQuantity), minimumQuantity)
     : 1;
   const duration = product.quotation_config.duration_required
-    ? normalizeNumber(state.duration, product.quotation_config.minimum_duration ?? 1)
+    ? Math.max(normalizeNumber(state.duration, minimumDuration), minimumDuration)
     : 1;
+
+  const baseQuantity = product.quotation_config.quantity_required
+    ? minimumQuantity
+    : 1;
+  const baseDuration = product.quotation_config.duration_required
+    ? minimumDuration
+    : 1;
+  const scale = (quantity / baseQuantity) * (duration / baseDuration);
+
+  const fixed = product.fixed_price_tiers?.[budgetTier];
+  const fixedMinimum = fixed?.minimum_price ?? 0;
+  const fixedMaximum = fixed?.maximum_price ?? 0;
 
   return {
     duration,
-    maximum: tier.maximum_price * quantity * duration,
-    minimum: tier.minimum_price * quantity * duration,
+    maximum: Math.round(
+      fixedMaximum + (tier.maximum_price - fixedMaximum) * scale
+    ),
+    minimum: Math.round(
+      fixedMinimum + (tier.minimum_price - fixedMinimum) * scale
+    ),
     quantity,
   };
+}
+
+export function formatUnit(unit?: string) {
+  return unit ? unit.replaceAll("_", " ") : "";
 }
 
 export function buildSelectedProductState(

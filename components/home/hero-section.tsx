@@ -1,16 +1,26 @@
 import Link from "next/link";
 
-const heroImage =
-  "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2400&q=85";
+const heroImage = [
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fwedding_hero_image.png?alt=media&token=6505076f-20ab-4c21-a64d-8daa61b1a00e",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Freligious_hero_image.png?alt=media&token=d6283438-f78e-4957-9150-5527b9a780ff",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Ffriends_family_hero_image.png?alt=media&token=cefcc559-66ac-4165-9ad1-5ac2a60a45af",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcorporate_hero_image.png?alt=media&token=8b621009-f847-4b3b-8d95-12bbb4b02cda",
+];
 
 export function HeroSection() {
   return (
     <section className="relative h-[450px] overflow-hidden bg-black text-white lg:h-[990px]">
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      />
+      {heroImage.map((image, index) => (
+        <div
+          aria-hidden="true"
+          className="hero-background-slide absolute inset-0 bg-cover bg-center"
+          key={image}
+          style={{
+            animationDelay: `${index * 6}s`,
+            backgroundImage: `url(${image})`,
+          }}
+        />
+      ))}
       <div
         aria-hidden="true"
         className="absolute inset-0"

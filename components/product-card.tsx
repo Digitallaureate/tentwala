@@ -11,6 +11,7 @@ export type ProductCardData = {
   service_group?: string;
   sort_order: number;
   category_ids: string[];
+  category_label?: string;
   card_tag?: string;
   is_top_rated: boolean;
   service_cities: string[];
@@ -104,6 +105,7 @@ export const productCardClassName =
 // e.g. 28px title = 5.28cqw. Each card is a size container for that.
 export function ProductCard({ product }: { product: ProductCardData }) {
   const tag =
+    product.category_label ??
     product.card_tag ??
     (product.service_group ? toTitleCase(product.service_group) : "");
 

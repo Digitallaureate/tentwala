@@ -20,12 +20,40 @@ import {
 
 const MAX_FEATURED_CARDS = 6;
 
+type CategoryLabel = { id: string; name: string };
+
+const categoriesRef = collection(db, "product_categories");
 const productsRef = collection(db, "products");
 
 export function HomeProducts() {
+  const [categories, setCategories] = useState<CategoryLabel[]>([]);
   const [products, setProducts] = useState<ProductCardData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const categoriesQuery = query(
+      categoriesRef,
+      where("is_active", "==", true),
+      orderBy("sort_order", "asc")
+    );
+
+    return onSnapshot(
+      categoriesQuery,
+      (snapshot) => {
+        setCategories(
+          snapshot.docs.map((entry) => ({
+            id: entry.id,
+            name: String(entry.data().name ?? ""),
+          }))
+        );
+      },
+      (snapshotError) => {
+        console.error(snapshotError);
+        setError("Could not load categories from Firestore.");
+      }
+    );
+  }, []);
 
   useEffect(() => {
     const productsQuery = query(
@@ -55,6 +83,18 @@ export function HomeProducts() {
 
     return unsubscribe;
   }, []);
+
+  const categoryNameById = new Map(
+    categories.map((category) => [category.id, category.name])
+  );
+
+  function getProductCategoryLabel(product: ProductCardData) {
+    const categoryId = product.category_ids.find((id) =>
+      categoryNameById.has(id)
+    );
+
+    return categoryId ? categoryNameById.get(categoryId) : undefined;
+  }
 
   if (isLoading) {
     return (
@@ -90,9 +130,16 @@ export function HomeProducts() {
   return (
     <>
       <div className={productCardGridClassName}>
-        {products.slice(0, MAX_FEATURED_CARDS).map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
+        {products.slice(0, MAX_FEATURED_CARDS).map((product) => {
+          const categoryLabel = getProductCategoryLabel(product);
+
+          return (
+            <ProductCard
+              key={product.id}
+              product={{ ...product, category_label: categoryLabel }}
+            />
+          );
+        })}
       </div>
 
       <div className="mt-10 flex justify-end lg:mt-[60px]">

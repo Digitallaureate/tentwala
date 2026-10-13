@@ -12,6 +12,7 @@
   --color-soft-white: #d9d9d9;
   --color-muted: #a7a3a0;
   --color-bg: #faf7f2;
+  --color-green: #4caf50;
   --font-sans: var(--font-afacad), "Afacad", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --font-serif: var(--font-judson), "Judson", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Garamond, "Times New Roman", serif;
@@ -57,4 +58,51 @@ select {
   background: linear-gradient(180deg, #c9a96e 0%, #a78e5f 100%);
   color: #ffffff;
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+}
+
+.hero-background-slide {
+  animation: hero-background-slide 24s infinite;
+  opacity: 0;
+  transform: scale(1.04) translateX(24px);
+}
+
+@keyframes hero-background-slide {
+  0% {
+    opacity: 1;
+    transform: scale(1.04) translateX(0);
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1.06) translateX(-12px);
+  }
+
+  25% {
+    opacity: 0;
+    transform: scale(1.08) translateX(-28px);
+  }
+
+  95% {
+    opacity: 0;
+    transform: scale(1.04) translateX(24px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.04) translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-background-slide {
+    animation: none;
+  }
+
+  .hero-background-slide:not(:first-child) {
+    opacity: 0;
+  }
+
+  .hero-background-slide:first-child {
+    opacity: 1;
+  }
 }

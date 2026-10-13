@@ -23,6 +23,7 @@ import {
   getBundleProductsForEventType,
   getEstimatedTotals,
   getEventTypeProducts,
+  formatUnit,
   getProductEstimate,
   normalizePriceTiers,
   normalizeQuotationConfig,
@@ -32,12 +33,12 @@ import {
 
 // Photos for the right-hand collage; save them in /public with these names.
 const collageImages = [
-  "/quote_1.png",
-  "/quote_2.png",
-  "/quote_3.png",
-  "/quote_4.png",
-  "/quote_5.png",
-  "/quote_6.png",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcategories%2Fmarriage_function.png?alt=media&token=ce29c2ad-b5f3-408e-b9e9-5a5d447defbb",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcategories%2Fwedding_function.png?alt=media&token=d0bce699-42db-4194-9384-56fec1565b26",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcategories%2Freligious_event.png?alt=media&token=d58392d6-7c48-4812-9e75-1fcc003d4da0",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcategories%2Ffriend_family_gathering.png?alt=media&token=12bbe9a8-7936-44b3-b11c-fa16d4548449",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fcategories%2Fcorporate_institutional_event.png?alt=media&token=1acc9743-c912-45a4-b2da-d3dd41d59b19",
+  "https://firebasestorage.googleapis.com/v0/b/kabir-assistant-api.firebasestorage.app/o/tentwala%2Fabout_story.png?alt=media&token=be49d3a0-70f5-4e5b-8d82-645361076d8b",
 ];
 
 const budgetTiers: Array<{ key: BudgetTierKey; label: string }> = (
@@ -248,6 +249,9 @@ export function RequestQuoteForm({
               : undefined,
             pricing_model: String(data.pricing_model ?? ""),
             price_tiers: priceTiers,
+            fixed_price_tiers: data.fixed_price_tiers as
+              | ProductOption["fixed_price_tiers"]
+              | undefined,
             quotation_config: quotationConfig,
           };
         });
@@ -677,7 +681,15 @@ export function RequestQuoteForm({
                                   </p>
                                   <p className="text-[clamp(13px,1.07cqw,18px)] text-black">
                                     {budgetConfig
-                                      ? `${getBudgetLabel(budgetTier)}: Rs. ${budgetConfig.minimum_price} - Rs. ${budgetConfig.maximum_price}`
+                                      ? `${getBudgetLabel(budgetTier)}: Rs. ${budgetConfig.minimum_price} - Rs. ${budgetConfig.maximum_price}${
+                                          product.quotation_config.quantity_required
+                                            ? ` for ${product.quotation_config.minimum_quantity ?? 1} ${formatUnit(product.quotation_config.quantity_unit)}`
+                                            : ""
+                                        }${
+                                          product.quotation_config.duration_required
+                                            ? ` per ${product.quotation_config.minimum_duration ?? 1} ${formatUnit(product.quotation_config.duration_unit)}`
+                                            : ""
+                                        }`
                                       : "Manual review required for final estimate"}
                                   </p>
                                 </div>
@@ -693,6 +705,9 @@ export function RequestQuoteForm({
                                       >
                                         {product.quotation_config.quantity_label ??
                                           "Quantity required"}
+                                        {product.quotation_config.quantity_unit
+                                          ? ` (in ${formatUnit(product.quotation_config.quantity_unit)})`
+                                          : ""}
                                       </label>
                                       <input
                                         className={inputClassName}
@@ -710,6 +725,11 @@ export function RequestQuoteForm({
                                         type="number"
                                         value={productState.quantity}
                                       />
+                                      <p className="mt-1 text-xs text-[#717171]">
+                                        Minimum{" "}
+                                        {product.quotation_config.minimum_quantity ?? 1}{" "}
+                                        {formatUnit(product.quotation_config.quantity_unit)}
+                                      </p>
                                     </div>
                                   ) : null}
 
@@ -721,6 +741,9 @@ export function RequestQuoteForm({
                                       >
                                         {product.quotation_config.duration_label ??
                                           "Duration required"}
+                                        {product.quotation_config.duration_unit
+                                          ? ` (in ${formatUnit(product.quotation_config.duration_unit)}s)`
+                                          : ""}
                                       </label>
                                       <input
                                         className={inputClassName}
@@ -746,7 +769,11 @@ export function RequestQuoteForm({
                                       Estimated price:
                                     </span>{" "}
                                     {estimate
-                                      ? `Rs. ${estimate.minimum} - Rs. ${estimate.maximum}`
+                                      ? `Rs. ${estimate.minimum.toLocaleString("en-IN")} - Rs. ${estimate.maximum.toLocaleString("en-IN")}${
+                                          product.quotation_config.quantity_required
+                                            ? ` for ${estimate.quantity} ${formatUnit(product.quotation_config.quantity_unit)}`
+                                            : ""
+                                        }`
                                       : "Manual review required for this selection."}
                                   </p>
                                 </div>

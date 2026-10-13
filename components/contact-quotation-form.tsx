@@ -15,6 +15,7 @@ import {
   getBundleProductsForEventType,
   getEstimatedTotals,
   getEventTypeProducts,
+  formatUnit,
   getProductEstimate,
   normalizePriceTiers,
   normalizeQuotationConfig,
@@ -147,6 +148,9 @@ export function ContactQuotationForm({
               : undefined,
             pricing_model: String(data.pricing_model ?? ""),
             price_tiers: priceTiers,
+            fixed_price_tiers: data.fixed_price_tiers as
+              | ProductOption["fixed_price_tiers"]
+              | undefined,
             quotation_config: quotationConfig,
           };
         });
@@ -633,6 +637,12 @@ export function ContactQuotationForm({
                             <p className="text-sm font-medium text-zinc-700">
                               {budgetConfig.label}: Rs. {budgetConfig.minimum_price} - Rs.{" "}
                               {budgetConfig.maximum_price}
+                              {product.quotation_config.quantity_required
+                                ? ` for ${product.quotation_config.minimum_quantity ?? 1} ${formatUnit(product.quotation_config.quantity_unit)}`
+                                : ""}
+                              {product.quotation_config.duration_required
+                                ? ` per ${product.quotation_config.minimum_duration ?? 1} ${formatUnit(product.quotation_config.duration_unit)}`
+                                : ""}
                             </p>
                           ) : (
                             <p className="text-sm font-medium text-zinc-700">
@@ -649,6 +659,9 @@ export function ContactQuotationForm({
                               <label className="text-sm font-semibold text-zinc-900">
                                 {product.quotation_config.quantity_label ??
                                   "Quantity required"}
+                                {product.quotation_config.quantity_unit
+                                  ? ` (in ${formatUnit(product.quotation_config.quantity_unit)})`
+                                  : ""}
                               </label>
                               <input
                                 className="h-11 w-full rounded-2xl border-2 border-zinc-300 bg-zinc-50 px-4 text-sm outline-none transition focus:border-zinc-500"
@@ -663,6 +676,10 @@ export function ContactQuotationForm({
                                 type="number"
                                 value={productState.quantity}
                               />
+                              <p className="text-xs text-zinc-500">
+                                Minimum {product.quotation_config.minimum_quantity ?? 1}{" "}
+                                {formatUnit(product.quotation_config.quantity_unit)}
+                              </p>
                             </div>
                           ) : null}
 
@@ -671,6 +688,9 @@ export function ContactQuotationForm({
                               <label className="text-sm font-semibold text-zinc-900">
                                 {product.quotation_config.duration_label ??
                                   "Duration required"}
+                                {product.quotation_config.duration_unit
+                                  ? ` (in ${formatUnit(product.quotation_config.duration_unit)}s)`
+                                  : ""}
                               </label>
                               <input
                                 className="h-11 w-full rounded-2xl border-2 border-zinc-300 bg-zinc-50 px-4 text-sm outline-none transition focus:border-zinc-500"
@@ -694,7 +714,11 @@ export function ContactQuotationForm({
                             </p>
                             <p className="text-sm text-zinc-600">
                               {estimate
-                                ? `Rs. ${estimate.minimum} - Rs. ${estimate.maximum}`
+                                ? `Rs. ${estimate.minimum.toLocaleString("en-IN")} - Rs. ${estimate.maximum.toLocaleString("en-IN")}${
+                                    product.quotation_config.quantity_required
+                                      ? ` for ${estimate.quantity} ${formatUnit(product.quotation_config.quantity_unit)}`
+                                      : ""
+                                  }`
                                 : "Manual review required for this selection."}
                             </p>
                           </div>

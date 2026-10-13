@@ -317,46 +317,65 @@ export function ServicesBrowser({
   const selectedCategory = categories.find(
     (category) => category.slug === selectedSlug
   );
+  const selectedCategoryId = selectedCategory?.id ?? "";
+  const selectedCategoryName = selectedCategory?.name ?? "";
+  const categoryNameById = useMemo(
+    () =>
+      new Map(categories.map((category) => [category.id, category.name])),
+    [categories]
+  );
 
-  const visibleServices = useMemo(() => {
-    const tokens = searchText.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  function getServiceCategoryLabel(service: ServiceItem) {
+    if (
+      selectedCategoryId &&
+      service.category_ids.includes(selectedCategoryId)
+    ) {
+      return selectedCategoryName;
+    }
 
-    return services
-      .filter((service) =>
-        selectedCategory
-          ? service.category_ids.includes(selectedCategory.id)
-          : true
-      )
-      .filter((service) =>
-        locations.length > 0
-          ? service.service_cities.some((city) => locations.includes(city))
-          : true
-      )
-      .filter((service) => {
-        if (budgets.length === 0) {
-          return true;
-        }
+    const categoryId = service.category_ids.find((id) =>
+      categoryNameById.has(id)
+    );
 
-        return budgets.some(
-          (tier) => typeof service.tier_minimums[tier as BudgetTierKey] === "number"
-        );
-      })
-      .filter((service) =>
-        tokens.every((token) => service.search_words.includes(token))
-      )
-      .map((service) => {
-        if (budgets.length === 0) {
-          return service;
-        }
+    return categoryId ? categoryNameById.get(categoryId) : undefined;
+  }
 
-        // With budget tiers chosen, show the lowest price among those tiers.
-        const prices = budgets
-          .map((tier) => service.tier_minimums[tier as BudgetTierKey])
-          .filter((price): price is number => typeof price === "number");
+  const tokens = searchText.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const visibleServices = services
+    .filter((service) =>
+      selectedCategoryId
+        ? service.category_ids.includes(selectedCategoryId)
+        : true
+    )
+    .filter((service) =>
+      locations.length > 0
+        ? service.service_cities.some((city) => locations.includes(city))
+        : true
+    )
+    .filter((service) => {
+      if (budgets.length === 0) {
+        return true;
+      }
 
-        return { ...service, starting_price: Math.min(...prices) };
-      });
-  }, [services, selectedCategory, locations, budgets, searchText]);
+      return budgets.some(
+        (tier) => typeof service.tier_minimums[tier as BudgetTierKey] === "number"
+      );
+    })
+    .filter((service) =>
+      tokens.every((token) => service.search_words.includes(token))
+    )
+    .map((service) => {
+      if (budgets.length === 0) {
+        return service;
+      }
+
+      // With budget tiers chosen, show the lowest price among those tiers.
+      const prices = budgets
+        .map((tier) => service.tier_minimums[tier as BudgetTierKey])
+        .filter((price): price is number => typeof price === "number");
+
+      return { ...service, starting_price: Math.min(...prices) };
+    });
 
   const shownServices = showAll
     ? visibleServices
@@ -499,9 +518,16 @@ export function ServicesBrowser({
         ) : (
           <>
             <div className={productCardGridClassName}>
-              {shownServices.map((service) => (
-                <ProductCard key={service.id} product={service} />
-              ))}
+              {shownServices.map((service) => {
+                const categoryLabel = getServiceCategoryLabel(service);
+
+                return (
+                  <ProductCard
+                    key={service.id}
+                    product={{ ...service, category_label: categoryLabel }}
+                  />
+                );
+              })}
             </div>
 
             {!showAll && visibleServices.length > INITIAL_VISIBLE_COUNT ? (
