@@ -7,9 +7,13 @@ export function FloatingQuotationChat() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-5 right-4 z-50 sm:bottom-6 sm:right-6">
+    <div
+      className={`fixed bottom-5 right-4 flex flex-col items-end sm:bottom-6 sm:right-6 ${
+        isOpen ? "z-[100]" : "z-50"
+      }`}
+    >
       {isOpen ? (
-        <div className="relative mb-3 h-[min(82vh,38rem)] w-[min(94vw,29.5rem)] overflow-hidden rounded-[20px] border border-white bg-[var(--background)] shadow-[0_30px_90px_rgba(0,0,0,0.24)]">
+        <div className="fixed inset-x-3 bottom-3 top-3 overflow-hidden rounded-[20px] border border-white bg-[var(--background)] shadow-[0_30px_90px_rgba(0,0,0,0.24)] sm:relative sm:inset-auto sm:mb-3 sm:h-[min(82vh,38rem)] sm:w-[min(94vw,29.5rem)]">
           <QuotationChatbot onClose={() => setIsOpen(false)} variant="widget" />
         </div>
       ) : null}
@@ -17,7 +21,9 @@ export function FloatingQuotationChat() {
       <button
         aria-expanded={isOpen}
         aria-label="Open quotation chat"
-        className="floating-action-button inline-flex items-center justify-center text-sm font-semibold transition hover:-translate-y-0.5 hover:brightness-105"
+        className={`floating-action-button items-center ${
+          isOpen ? "hidden sm:inline-flex" : "inline-flex"
+        } justify-center justify-center text-sm font-semibold transition hover:-translate-y-0.5 hover:brightness-105`}
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >

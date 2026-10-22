@@ -40,7 +40,13 @@ export function SiteHeader({ active }: SiteHeaderProps) {
   return (
     <header className="fixed inset-x-0 top-0 z-88">
       <div className="w-full">
-        <div className="overflow-hidden border border-black/5 bg-transparent shadow-none sm:bg-[var(--background)] sm:shadow-[0_14px_44px_rgba(0,0,0,0.08)]">
+        <div
+          className={`overflow-hidden border border-black/5 transition-colors sm:bg-[var(--background)] sm:shadow-[0_14px_44px_rgba(0,0,0,0.08)] ${
+            isMenuOpen
+              ? "bg-[var(--background)] shadow-[0_14px_44px_rgba(0,0,0,0.12)]"
+              : "bg-transparent shadow-none"
+          }`}
+        >
           <div className="mx-auto w-full px-4 py-3 sm:px-6 lg:px-[clamp(24px,6.25vw,120px)]">
             <div className="flex items-center justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-[clamp(16px,1.67vw,32px)]">
               <Link

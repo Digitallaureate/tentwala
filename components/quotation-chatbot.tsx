@@ -2164,7 +2164,7 @@ export function QuotationChatbot({
               aria-label="Chat message"
               className={
                 isWidget
-                  ? "h-[47px] max-h-[47px] w-[min(100%,370px)] flex-1 resize-none rounded-[10px] border border-[var(--color-gold)] bg-transparent px-4 py-[13px] text-sm leading-5 text-black outline-none transition placeholder:text-[#a7a3a0] focus:border-[#a78e5f] disabled:cursor-not-allowed disabled:opacity-70"
+                  ? "h-[47px] max-h-[47px] w-[min(100%,370px)] flex-1 resize-none overflow-hidden rounded-[10px] border border-[var(--color-gold)] bg-transparent px-4 py-[13px] text-sm leading-5 text-black outline-none transition placeholder:text-[#a7a3a0] focus:border-[#a78e5f] disabled:cursor-not-allowed disabled:opacity-70"
                   : "max-h-36 min-h-12 flex-1 resize-none rounded-[1.35rem] border border-[#d9d6d0] bg-white px-4 py-3 text-sm leading-6 text-[#1d2d44] outline-none transition placeholder:text-zinc-400 focus:border-[#243f78] disabled:cursor-not-allowed disabled:bg-zinc-50"
               }
               disabled={isSending}
